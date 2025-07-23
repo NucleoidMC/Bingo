@@ -1,0 +1,23 @@
+{
+  "type": "bingo:bingo",
+  "time_limit": 2000,
+  "players": {
+    "min": 1,
+    "max": 32,
+    "threshold": 1,
+    "countdown": {
+      "ready_seconds": 15
+    }
+  },
+  "dimension_options": {
+    "type": "minecraft:overworld",
+    "generator": {
+      "type": "minecraft:noise",
+      "biome_source": {
+        "type": "minecraft:multi_noise",
+        "preset": "minecraft:overworld"
+      },
+      "settings": "minecraft:overworld"
+    }
+  }
+}

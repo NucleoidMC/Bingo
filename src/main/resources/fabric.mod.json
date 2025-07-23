@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "bingo",
+  "version": "${version}",
+  "name": "Bingo",
+  "description": "",
+  "authors": ["Ellie_is_Jelly"],
+  "contact": {},
+  "license": "LGPL-3.0",
+  "icon": "assets/bingo/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "me.ellieis.bingo.Bingo"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "plasmid": "0.6.x",
+    "minecraft": "${minecraft_version}"
+  }
+}
