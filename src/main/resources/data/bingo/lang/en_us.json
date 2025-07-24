@@ -1,4 +1,5 @@
 {
   "gameType.bingo.bingo": "Bingo",
+  "bingo.no_available_dimensions": "No available dimensions to spawn the player in.",
   "bingo.generating": "Generating world, please wait."
 }

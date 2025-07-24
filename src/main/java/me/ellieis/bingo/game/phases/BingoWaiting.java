@@ -1,10 +1,12 @@
 package me.ellieis.bingo.game.phases;
 
+import me.ellieis.bingo.Bingo;
 import me.ellieis.bingo.game.config.BingoConfig;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.GameMode;
 import xyz.nucleoid.plasmid.api.game.GameActivity;
+import xyz.nucleoid.plasmid.api.game.GameResult;
 import xyz.nucleoid.plasmid.api.game.GameSpace;
 import xyz.nucleoid.plasmid.api.game.common.GameWaitingLobby;
 import xyz.nucleoid.plasmid.api.game.event.GameActivityEvents;
@@ -30,6 +32,11 @@ public class BingoWaiting {
         gameSpace.getPlayers().forEach((plr) -> {
             plr.teleport(world, spawnPos.getX(), spawnPos.getY(), spawnPos.getZ(), Set.of(), 0, 0, false);
             plr.changeGameMode(GameMode.ADVENTURE);
+        });
+
+        activity.listen(GameActivityEvents.REQUEST_START, () -> {
+            BingoActive.Open(gameSpace, config, world, spawnPos);
+            return GameResult.ok();
         });
 
         activity.listen(GamePlayerEvents.OFFER, JoinOffer::accept);

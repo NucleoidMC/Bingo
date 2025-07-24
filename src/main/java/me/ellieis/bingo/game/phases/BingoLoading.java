@@ -1,10 +1,15 @@
 package me.ellieis.bingo.game.phases;
 
+import me.ellieis.bingo.Bingo;
 import me.ellieis.bingo.game.config.BingoConfig;
+import net.minecraft.entity.boss.dragon.EnderDragonFight;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ChunkTicket;
 import net.minecraft.server.world.ChunkTicketType;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Vec3d;
@@ -12,6 +17,9 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.dimension.DimensionOptions;
+import net.minecraft.world.dimension.DimensionType;
+import net.minecraft.world.dimension.DimensionTypes;
+import net.minecraft.world.gen.chunk.ChunkGenerator;
 import xyz.nucleoid.fantasy.RuntimeWorldConfig;
 import xyz.nucleoid.fantasy.util.VoidChunkGenerator;
 import xyz.nucleoid.plasmid.api.game.*;
@@ -19,23 +27,79 @@ import xyz.nucleoid.plasmid.api.game.event.GameActivityEvents;
 import xyz.nucleoid.plasmid.api.game.event.GamePlayerEvents;
 import xyz.nucleoid.plasmid.api.game.player.JoinOffer;
 
-import java.util.Set;
+import java.util.Objects;
 
 public class BingoLoading {
+    @SuppressWarnings("deprecation")
     public static GameOpenProcedure Open(GameOpenContext<BingoConfig> context) {
         BingoConfig config = context.config();
-        DimensionOptions dimensionOptions = config.dimensionOptions();
+
+        MinecraftServer server = context.server();
+        long seed = Random.create().nextLong();
         RuntimeWorldConfig waitingWorldConfig = new RuntimeWorldConfig()
                 .setGenerator(new VoidChunkGenerator(context.server()));
-        RuntimeWorldConfig worldConfig = new RuntimeWorldConfig()
-                .setGenerator(dimensionOptions.chunkGenerator())
-                .setDimensionType(dimensionOptions.dimensionTypeEntry())
-                .setSeed(Random.create().nextLong());
+
+        RuntimeWorldConfig overworldConfig;
+        if (config.hasOverworld()) {
+            overworldConfig = new RuntimeWorldConfig()
+                    .setGenerator(server.getOverworld().getChunkManager().getChunkGenerator())
+                    .setDimensionType(DimensionTypes.OVERWORLD)
+                    .setSeed(seed);
+        } else {
+            overworldConfig = null;
+        }
+
+        RuntimeWorldConfig netherConfig;
+        if (config.hasNether()) {
+            netherConfig = new RuntimeWorldConfig()
+                    .setGenerator(Objects.requireNonNull(server.getWorld(ServerWorld.NETHER)).getChunkManager().getChunkGenerator())
+                    .setDimensionType(DimensionTypes.THE_NETHER)
+                    .setSeed(seed);
+        } else {
+            netherConfig = null;
+        }
+
+        RuntimeWorldConfig endConfig;
+        if (config.hasEnd()) {
+            endConfig = new RuntimeWorldConfig()
+                    .setGenerator(Objects.requireNonNull(server.getWorld(ServerWorld.END)).getChunkManager().getChunkGenerator())
+                    .setDimensionType(DimensionTypes.THE_END)
+                    .setSeed(seed);
+        } else {
+            endConfig = null;
+        }
 
         return context.open((activity) -> {
             ServerWorld waitingWorld = activity.getGameSpace().getWorlds().add(waitingWorldConfig);
-            ServerWorld realWorld = activity.getGameSpace().getWorlds().add(worldConfig);
-            BlockPos spawnPos = findSpawnPos(realWorld);
+            ServerWorld overworld = null;
+            if (config.hasOverworld()) {
+                overworld = activity.getGameSpace().getWorlds().add(overworldConfig);
+            }
+
+            ServerWorld nether = null;
+            if (config.hasNether()) {
+                nether = activity.getGameSpace().getWorlds().add(netherConfig);
+            }
+
+            ServerWorld end = null;
+            if (config.hasEnd()) {
+                end = activity.getGameSpace().getWorlds().add(endConfig);
+                end.setEnderDragonFight(new EnderDragonFight(end, seed, EnderDragonFight.Data.DEFAULT));
+            }
+
+            ServerWorld starterWorld;
+            Identifier starterDimension = config.starterDimension();
+            if (overworld != null && overworld.getDimension().effects().equals(starterDimension)) {
+                starterWorld = overworld;
+            } else if (nether != null && nether.getDimension().effects().equals(starterDimension)) {
+                starterWorld = nether;
+            } else if (end != null && end.getDimension().effects().equals(starterDimension)) {
+                starterWorld = end;
+            } else {
+                throw new GameOpenException(Text.translatable("bingo.no_available_dimensions"));
+            }
+
+            BlockPos spawnPos = findSpawnPos(starterWorld);
             long chunkPos = new ChunkPos(spawnPos).toLong();
             activity.listen(GamePlayerEvents.OFFER, JoinOffer::accept);
             activity.listen(GamePlayerEvents.ACCEPT, (acceptor) -> acceptor.teleport(waitingWorld, new Vec3d(0, 64, 0))
@@ -45,12 +109,12 @@ public class BingoLoading {
                 )
             );
             activity.listen(GameActivityEvents.CREATE, () -> {
-                realWorld.getChunkManager().addTicket(new ChunkTicket(ChunkTicketType.START, 2), new ChunkPos(spawnPos));
+                starterWorld.getChunkManager().addTicket(new ChunkTicket(ChunkTicketType.START, 2), new ChunkPos(spawnPos));
             });
             activity.listen(GameActivityEvents.REQUEST_START, () -> GameResult.error(Text.translatable("bingo.generating")));
             activity.listen(GameActivityEvents.TICK, () -> {
-                if (realWorld.isChunkLoaded(chunkPos)) {
-                    BingoWaiting.Open(activity.getGameSpace(), config, realWorld, spawnPos);
+                if (starterWorld.isChunkLoaded(chunkPos)) {
+                    BingoWaiting.Open(activity.getGameSpace(), config, starterWorld, spawnPos);
                     activity.getGameSpace().getWorlds().remove(waitingWorld);
                 } else {
                     activity.getGameSpace().getPlayers().forEach(
