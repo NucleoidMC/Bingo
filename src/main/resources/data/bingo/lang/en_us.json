@@ -1,5 +1,8 @@
 {
   "gameType.bingo.bingo": "Bingo",
   "bingo.no_available_dimensions": "No available dimensions to spawn the player in.",
-  "bingo.generating": "Generating world, please wait."
+  "bingo.generating": "Generating world, please wait.",
+  "bingo.respawning": "Respawning in %s seconds.",
+  "bingo.gui.card.title.self": "Your Bingo Card",
+  "bingo.gui.card.title.other": "%s's Bingo Card"
 }

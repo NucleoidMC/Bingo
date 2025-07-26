@@ -12,7 +12,8 @@
   "entrypoints": {
     "main": [
       "me.ellieis.bingo.Bingo"
-    ]
+    ],
+    "fabric-datagen": ["me.ellieis.bingo.data.BingoDatagen"]
   },
   "mixins": [
     "bingo.mixins.json"

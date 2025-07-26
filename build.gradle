@@ -10,6 +10,11 @@ base {
     archivesName = project.archives_base_name
 }
 
+fabricApi {
+    configureDataGeneration() {
+        client = true
+    }
+}
 
 repositories {
     // Add repositories to retrieve artifacts from in here.
@@ -27,6 +32,7 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    modImplementation "eu.pb4:factorytools:${project.factorytools_version}"
     modImplementation("xyz.nucleoid:plasmid:${project.plasmid_version}")
 }
 
