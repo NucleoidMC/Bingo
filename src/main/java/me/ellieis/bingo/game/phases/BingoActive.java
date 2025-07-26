@@ -2,6 +2,7 @@ package me.ellieis.bingo.game.phases;
 
 import it.unimi.dsi.fastutil.ints.IntList;
 import me.ellieis.bingo.Bingo;
+import me.ellieis.bingo.ItemCraftEvent;
 import me.ellieis.bingo.game.config.BingoConfig;
 import net.minecraft.component.type.FireworkExplosionComponent;
 import net.minecraft.entity.ItemEntity;
@@ -88,8 +89,7 @@ public class BingoActive {
         activity.listen(GameActivityEvents.TICK, this::onTick);
         activity.listen(PlayerDeathEvent.EVENT, this::onDeath);
         activity.listen(ItemPickupEvent.EVENT, this::onItemPickup);
-        activity.listen(PlayerInventoryActionEvent.EVENT, this::onInventoryAction);
-        //activity.listen(ItemCraftEvent.EVENT, this::onCraft);
+        activity.listen(ItemCraftEvent.EVENT, this::onCraft);
         activity.listen(NetherPortalOpenEvent.EVENT, (_world, _pos) -> config.hasNether() ? EventResult.ALLOW : EventResult.DENY);
         activity.listen(EndPortalOpenEvent.EVENT, (_context, _result) -> config.hasEnd() ? EventResult.ALLOW : EventResult.DENY);
         gameSpace.getPlayers().forEach(plr -> {
@@ -175,16 +175,14 @@ public class BingoActive {
             IntList colors = IntList.of(DyeColor.ORANGE.getFireworkColor());
             FireworkExplosionComponent explode = new FireworkExplosionComponent(FireworkExplosionComponent.Type.BURST, colors, IntList.of(), false, false);
             plrWorld.playSound(null, plr.getBlockPos(), SoundEvents.ENTITY_FIREWORK_ROCKET_BLAST, SoundCategory.PLAYERS, 1, 1);
-            checkForWin(plr);
-        }
-    }
-    private EventResult onInventoryAction(ServerPlayerEntity plr, int slot, SlotActionType actionType, int button) {
-        if (slot >= 0 && slot <= 36) {
-            ItemStack stack = plr.getInventory().getStack(slot);
-            if (stack != null) {
-                checkForScore(plr, stack);
+            if (checkForWin(plr)) {
+                End();
             }
         }
+    }
+
+    private EventResult onCraft(ServerPlayerEntity plr, ItemStack stack) {
+        checkForScore(plr, stack);
         return EventResult.PASS;
     }
 
@@ -273,5 +271,9 @@ public class BingoActive {
         });
         playersToRemove.forEach(plr -> playersRespawning.remove(plr));
         playersToRemove.clear();
+    }
+
+    private void End() {
+        // to-do: end logic
     }
 }

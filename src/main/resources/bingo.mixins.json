@@ -9,6 +9,7 @@
   "mixins": [
     "AbstractFireBlockMixin",
     "EndPortalBlockMixin",
+    "ItemMixin",
     "NetherPortalBlockMixin"
   ]
 }
