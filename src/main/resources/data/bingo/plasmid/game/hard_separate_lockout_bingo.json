@@ -1,0 +1,6 @@
+{
+  "type": "bingo:bingo",
+  "separate": true,
+  "hard_mode": true,
+  "lockout": true
+}

@@ -4,6 +4,7 @@ import me.ellieis.bingo.Bingo;
 import me.ellieis.bingo.BingoCardCommand;
 import me.ellieis.bingo.ItemCraftEvent;
 import me.ellieis.bingo.game.config.BingoConfig;
+import net.minecraft.SharedConstants;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.item.*;
@@ -16,14 +17,17 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.GameMode;
 import xyz.nucleoid.plasmid.api.game.GameActivity;
+import xyz.nucleoid.plasmid.api.game.GameCloseReason;
 import xyz.nucleoid.plasmid.api.game.GameSpace;
 import xyz.nucleoid.plasmid.api.game.common.GlobalWidgets;
 import xyz.nucleoid.plasmid.api.game.common.team.*;
@@ -32,6 +36,7 @@ import xyz.nucleoid.plasmid.api.game.event.GameActivityEvents;
 import xyz.nucleoid.plasmid.api.game.event.GamePlayerEvents;
 import xyz.nucleoid.plasmid.api.game.player.JoinOffer;
 import xyz.nucleoid.plasmid.api.game.rule.GameRuleType;
+import xyz.nucleoid.plasmid.api.util.PlayerRef;
 import xyz.nucleoid.stimuli.event.EventResult;
 import xyz.nucleoid.stimuli.event.item.ItemPickupEvent;
 import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
@@ -43,6 +48,8 @@ import java.util.*;
 public class BingoActive {
     public GameSpace gameSpace;
     final long startTime;
+    boolean gameWon = false;
+    long gameWinTime = 0;
     GameActivity activity;
     BingoConfig config;
     ServerWorld world;
@@ -142,6 +149,10 @@ public class BingoActive {
             sidebar.addPlayer(plr);
             BingoCardCommand.showGui(plr, plr);
             plr.sendMessage(Text.translatable("bingo.config.enabled_options"));
+            if (config.separate()) {
+                String key = "bingo.config.separate";
+                plr.sendMessage(Text.translatable(key).formatted(Formatting.GOLD).styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.translatable(key + ".desc")))));
+            }
             if (config.lockout()) {
                 String key = "bingo.config.lockout";
                 plr.sendMessage(Text.translatable(key).formatted(Formatting.GOLD).styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.translatable(key + ".desc")))));
@@ -183,7 +194,7 @@ public class BingoActive {
             content.add(Text.translatable("bingo.sidebar.desc"));
             content.add(Text.translatable("bingo.sidebar.desc2"));
             if (config.timeLimit() != 0) {
-                long timeLeft = (long) Math.abs(Math.floor((world.getTime() / 20) - (startTime / 20)) - config.timeLimit());
+                long timeLeft = (long) Math.abs(Math.floor((world.getTime() / SharedConstants.TICKS_PER_SECOND) - (startTime / SharedConstants.TICKS_PER_SECOND)) - config.timeLimit());
                 long minutes = timeLeft / 60;
                 String seconds;
                 if (timeLeft % 60 > 10) {
@@ -198,9 +209,20 @@ public class BingoActive {
     }
     private boolean checkForWin(ServerPlayerEntity plr) {
         List<List<BingoSlot>> bingoCard = bingoCards.get(plr);
-
+        if (config.lockout()) {
+            int claimedSlotCount = 0;
+            for (List<BingoSlot> col : bingoCard) {
+                for (BingoSlot slot : col) {
+                    if (slot.marked()) {
+                        claimedSlotCount++;
+                    }
+                }
+            }
+            return claimedSlotCount >= 13;
+        }
         boolean horizontalWin = true;
         for (List<BingoSlot> col : bingoCard) {
+            horizontalWin = true;
             for (BingoSlot slot : col) {
                 if (!slot.marked()) {
                     horizontalWin = false;
@@ -214,6 +236,7 @@ public class BingoActive {
 
         boolean verticalWin = true;
         for (int rowIndex = 0; rowIndex < 5; rowIndex++) {
+            verticalWin = true;
             List<BingoSlot> row = new ArrayList<>();
             for (int colIndex = 0; colIndex < 5; colIndex ++) {
                 row.add(bingoCard.get(colIndex).get(rowIndex));
@@ -303,9 +326,9 @@ public class BingoActive {
                 });
             }
 
-            gameSpace.getPlayers().sendMessage(Text.translatable("bingo.itempickup", plrName, stack.getName().copy().formatted(Formatting.GOLD)));
+            gameSpace.getPlayers().sendMessage(Text.translatable("bingo.itempickup", plrName, stack.getName().copy().formatted(Formatting.GOLD)).styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.translatable("bingo.itempickup.hover", plr.getName()))).withClickEvent(new ClickEvent.RunCommand("/bingocard " + plr.getName().getString()))));
             if (checkForWin(plr)) {
-                End();
+                End(plr);
             }
         }
     }
@@ -323,16 +346,7 @@ public class BingoActive {
         Item item = items.getRandom(Random.create()).orElseThrow().value();
         for (List<BingoSlot> col : bingoCard) {
             for (BingoSlot slot : col) {
-                if (slot.item().equals(item)) {
-                    item = generateItem(bingoCard);
-                    break;
-                } else if (config.genericSherdDrops() && slot.item().getDefaultStack().getRegistryEntry().getIdAsString().contains("sherd") && item.getDefaultStack().getRegistryEntry().getIdAsString().contains("sherd")) {
-                    item = generateItem(bingoCard);
-                    break;
-                } else if (config.genericMusicDiscDrops() && slot.item().getDefaultStack().getRegistryEntry().getIdAsString().contains("disc") && item.getDefaultStack().getRegistryEntry().getIdAsString().contains("disc")) {
-                    item = generateItem(bingoCard);
-                    break;
-                } else if (config.genericArmorTrimDrops() && slot.item() instanceof SmithingTemplateItem && item instanceof SmithingTemplateItem) {
+                if (isSameItem(item, slot.item())) {
                     item = generateItem(bingoCard);
                     break;
                 }
@@ -363,8 +377,7 @@ public class BingoActive {
         if (!config.hardMode() && hardItems.contains(item)) {
             return false;
         }
-        // to-do: disallow pottery sherds
-        // to-do: disallow armor trims
+
         return !(item instanceof OperatorOnlyBlockItem) && !(item instanceof AirBlockItem) && !(item instanceof SpawnEggItem) && !disallowedItems.contains(item) && item.isEnabled(world.getEnabledFeatures());
     }
 
@@ -398,7 +411,7 @@ public class BingoActive {
     private EventResult onDeath(ServerPlayerEntity plr, DamageSource source) {
         Text deathMessage = plr.getDamageTracker().getDeathMessage();
         gameSpace.getPlayers().forEach(plr1 -> plr1.sendMessage(deathMessage));
-        playersRespawning.put(plr, gameSpace.getTime() + 100);
+        playersRespawning.put(plr, gameSpace.getTime() + SharedConstants.TICKS_PER_SECOND * 5);
         plr.getInventory().dropAll();
         plr.changeGameMode(GameMode.SPECTATOR);
         return EventResult.DENY;
@@ -420,16 +433,60 @@ public class BingoActive {
                 plr.sendMessage(Text.translatable("bingo.respawning", (timeLeft + 20) / 20), true);
             }
         });
-
-        if (config.timeLimit() != 0 && time % 20 == 0) {
-            updateSidebar();
-        }
-
         playersToRemove.forEach(plr -> playersRespawning.remove(plr));
         playersToRemove.clear();
+        if (gameWon) {
+            if (time - gameWinTime > SharedConstants.TICKS_PER_SECOND * 10) {
+                System.out.println("boobs");
+                gameSpace.close(GameCloseReason.FINISHED);
+            }
+        } else {
+            if (config.timeLimit() != 0 && time % SharedConstants.TICKS_PER_SECOND == 0) {
+                updateSidebar();
+            }
+        }
     }
 
-    private void End() {
-        // to-do: end logic
+    private void End(ServerPlayerEntity winner) {
+        int claimedSlotCount = 0;
+        for (List<BingoSlot> col : bingoCards.get(winner)) {
+            for (BingoSlot slot : col) {
+                if (slot.marked()) {
+                    claimedSlotCount++;
+                }
+            }
+        }
+        if (playerTeams.containsKey(winner)) {
+            GameTeamKey winningTeam = playerTeams.get(winner);
+            String teamPlayers = "";
+            for (PlayerRef plrRef : teamManager.get().allPlayersIn(winningTeam)) {
+                String plrName;
+                ServerPlayerEntity plr = plrRef.getEntity(gameSpace);
+                if (plr == null) {
+                    continue;
+                }
+                if (plr.getDisplayName() != null) {
+                    plrName = plr.getDisplayName().getString();
+                } else {
+                    plrName = plr.getName().getString();
+                }
+                plrName += ", ";
+                teamPlayers += plrName;
+            }
+            teamPlayers = teamPlayers.substring(0, teamPlayers.length() - 2);
+            String finalTeamPlayers = teamPlayers;
+            gameSpace.getPlayers().sendMessage(Text.translatable("bingo.win_message", teamManager.get().getTeamConfig(winningTeam).name(), claimedSlotCount).styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.literal(finalTeamPlayers)))));
+        } else {
+            String plrName;
+            if (winner.getDisplayName() != null) {
+                plrName = winner.getDisplayName().getString();
+            } else {
+                plrName = winner.getName().getString();
+            }
+            gameSpace.getPlayers().sendMessage(Text.translatable("bingo.win_message", Text.literal(plrName).formatted(Formatting.GOLD), claimedSlotCount));
+        }
+
+        gameWon = true;
+        gameWinTime = gameSpace.getTime();
     }
 }

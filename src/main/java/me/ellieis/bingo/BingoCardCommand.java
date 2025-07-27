@@ -27,7 +27,7 @@ public class BingoCardCommand {
     public static void showGui(ServerPlayerEntity observer, ServerPlayerEntity plr) {
         var type = ScreenHandlerType.GENERIC_9X6;
         SimpleGui gui = new SimpleGui(type, observer, false);
-        Text title = Text.translatable(observer.equals(plr) ? "bingo.gui.card.title.self" : "bingo.gui.card.title.others");
+        Text title = Text.translatable(observer.equals(plr) ? "bingo.gui.card.title.self" : "bingo.gui.card.title.others", plr.getName());
         boolean hasMainPack = PolymerResourcePackUtils.hasMainPack(observer);
         if (hasMainPack) {
             gui.setTitle(GuiTextures.BINGO_CARD.apply(title));
@@ -69,6 +69,9 @@ public class BingoCardCommand {
         dispatcher.register(
                 CommandManager.literal("bingocard")
                         .requires(BingoCardCommand::isInGame)
+                        .then(CommandManager.argument("player", EntityArgumentType.player())
+                                .executes(BingoCardCommand::commandArg)
+                        )
                         .executes(BingoCardCommand::command)
         );
     }

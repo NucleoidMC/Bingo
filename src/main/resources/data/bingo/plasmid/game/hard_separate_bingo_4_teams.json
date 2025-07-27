@@ -1,0 +1,27 @@
+{
+  "type": "bingo:bingo",
+  "separate": true,
+  "hard_mode": true,
+  "teams": [
+    {
+      "key": "red",
+      "color": "red",
+      "collision": "pushOtherTeams"
+    },
+    {
+      "key": "green",
+      "color": "green",
+      "collision": "pushOtherTeams"
+    },
+    {
+      "key": "blue",
+      "color": "blue",
+      "collision": "pushOtherTeams"
+    },
+    {
+      "key": "yellow",
+      "color": "yellow",
+      "collision": "pushOtherTeams"
+    }
+  ]
+}
