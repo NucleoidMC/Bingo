@@ -1,0 +1,15 @@
+{
+  "type": "bingo:bingo",
+  "teams": [
+    {
+      "key": "red",
+      "color": "red",
+      "collision": "pushOtherTeams"
+    },
+    {
+      "key": "blue",
+      "color": "blue",
+      "collision": "pushOtherTeams"
+    }
+  ]
+}

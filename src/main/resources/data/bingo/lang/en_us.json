@@ -4,9 +4,24 @@
   "bingo.generating": "Generating world, please wait.",
   "bingo.respawning": "Respawning in %s seconds.",
   "bingo.itempickup": "%s just got %s!",
+
   "bingo.gui.card.title.self": "Your Bingo Card",
   "bingo.gui.card.title.other": "%s's Bingo Card",
+
   "bingo.sidebar": "Get a bingo to win!",
   "bingo.sidebar.desc": "Use /bingocard to",
-  "bingo.sidebar.desc2": "see your bingo card."
+  "bingo.sidebar.desc2": "see your bingo card.",
+  "bingo.sidebar.time_left": "Time left: %02d:%02d",
+
+  "bingo.config.enabled_options": "Enabled Config Options:",
+  "bingo.config.hard_mode": "Hard Mode",
+  "bingo.config.hard_mode.desc": "Enables items that may be time consuming to get.",
+  "bingo.config.lockout": "Lockout",
+  "bingo.config.lockout.desc": "If an opposing player claims a slot, no one else can claim that slot.",
+  "bingo.config.generic_armor_trim_drops": "Generic Armor Trim Drops",
+  "bingo.config.generic_armor_trim_drops.desc": "Any armor trim variant will count as a score.",
+  "bingo.config.generic_sherd_drops": "Generic Sherd Drops",
+  "bingo.config.generic_sherd_drops.desc": "Any sherd variant will count as a score.",
+  "bingo.config.generic_music_disc_drops": "Generic Music Disc Drops",
+  "bingo.config.generic_music_disc_drops.desc": "Any music disc variant will count as a score."
 }

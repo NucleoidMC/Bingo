@@ -21,6 +21,7 @@ import xyz.nucleoid.plasmid.api.game.GameSpaceManager;
 import java.util.List;
 
 import static me.ellieis.bingo.resourcepack.GuiTextures.CLAIMED_SLOT;
+import static me.ellieis.bingo.resourcepack.GuiTextures.LOCKED_SLOT;
 
 public class BingoCardCommand {
     public static void showGui(ServerPlayerEntity observer, ServerPlayerEntity plr) {
@@ -48,7 +49,14 @@ public class BingoCardCommand {
                     } else {
                         gui.setSlot(index, Items.LIME_STAINED_GLASS_PANE.getDefaultStack());
                     }
-                } else {
+                } else if (slot.locked()) {
+                    if (hasMainPack) {
+                        gui.setSlot(index, LOCKED_SLOT.get().hideTooltip());
+                    } else {
+                        gui.setSlot(index, Items.BARRIER.getDefaultStack());
+                    }
+                }
+                else {
                     gui.setSlot(index, slot.item().getDefaultStack());
                 }
             }

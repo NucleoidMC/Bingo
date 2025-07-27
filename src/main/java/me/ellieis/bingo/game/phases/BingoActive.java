@@ -16,6 +16,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
@@ -25,6 +26,7 @@ import net.minecraft.world.GameMode;
 import xyz.nucleoid.plasmid.api.game.GameActivity;
 import xyz.nucleoid.plasmid.api.game.GameSpace;
 import xyz.nucleoid.plasmid.api.game.common.GlobalWidgets;
+import xyz.nucleoid.plasmid.api.game.common.team.*;
 import xyz.nucleoid.plasmid.api.game.common.widget.SidebarWidget;
 import xyz.nucleoid.plasmid.api.game.event.GameActivityEvents;
 import xyz.nucleoid.plasmid.api.game.event.GamePlayerEvents;
@@ -36,39 +38,51 @@ import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
 import xyz.nucleoid.stimuli.event.world.EndPortalOpenEvent;
 import xyz.nucleoid.stimuli.event.world.NetherPortalOpenEvent;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class BingoActive {
     public GameSpace gameSpace;
+    final long startTime;
     GameActivity activity;
     BingoConfig config;
     ServerWorld world;
     BlockPos spawnPos;
     GlobalWidgets widgets;
     SidebarWidget sidebar;
+    Optional<TeamSelectionLobby> teamSelection;
+    Optional<TeamManager> teamManager;
+    HashMap<ServerPlayerEntity, GameTeamKey> playerTeams;
     HashMap<ServerPlayerEntity, Long> playersRespawning = new HashMap<>();
     ArrayList<ServerPlayerEntity> playersToRemove = new ArrayList<>();
     RegistryEntryList<Item> items;
-    List<Item> disallowedItems = List.of(Items.KNOWLEDGE_BOOK, Items.BEDROCK, Items.VAULT, Items.PLAYER_HEAD, Items.CREEPER_HEAD, Items.DRAGON_HEAD, Items.PIGLIN_HEAD, Items.ZOMBIE_HEAD, Items.INFESTED_COBBLESTONE, Items.INFESTED_DEEPSLATE, Items.INFESTED_STONE, Items.INFESTED_CHISELED_STONE_BRICKS, Items.INFESTED_CRACKED_STONE_BRICKS, Items.INFESTED_MOSSY_STONE_BRICKS, Items.INFESTED_STONE_BRICKS, Items.SPAWNER, Items.TRIAL_SPAWNER, Items.END_PORTAL_FRAME, Items.BARRIER, Items.STRUCTURE_BLOCK, Items.STRUCTURE_VOID, Items.SUSPICIOUS_GRAVEL, Items.SUSPICIOUS_SAND);
+    List<Item> disallowedItems = List.of(Items.KNOWLEDGE_BOOK, Items.DEBUG_STICK, Items.LIGHT, Items.BEDROCK, Items.VAULT, Items.PLAYER_HEAD, Items.CREEPER_HEAD, Items.DRAGON_HEAD, Items.PIGLIN_HEAD, Items.ZOMBIE_HEAD, Items.INFESTED_COBBLESTONE, Items.INFESTED_DEEPSLATE, Items.INFESTED_STONE, Items.INFESTED_CHISELED_STONE_BRICKS, Items.INFESTED_CRACKED_STONE_BRICKS, Items.INFESTED_MOSSY_STONE_BRICKS, Items.INFESTED_STONE_BRICKS, Items.SPAWNER, Items.TRIAL_SPAWNER, Items.END_PORTAL_FRAME, Items.BARRIER, Items.STRUCTURE_BLOCK, Items.STRUCTURE_VOID, Items.SUSPICIOUS_GRAVEL, Items.SUSPICIOUS_SAND, Items.SMALL_AMETHYST_BUD, Items.MEDIUM_AMETHYST_BUD, Items.LARGE_AMETHYST_BUD);
     List<Item> hardItems = List.of(Items.ELYTRA, Items.DRAGON_BREATH, Items.BEACON, Items.NETHER_STAR, Items.WITHER_SKELETON_SKULL, Items.CHAINMAIL_CHESTPLATE, Items.CHAINMAIL_BOOTS, Items.CHAINMAIL_HELMET, Items.CHAINMAIL_LEGGINGS, Items.NETHERITE_INGOT, Items.NETHERITE_AXE, Items.NETHERITE_BLOCK, Items.NETHERITE_BOOTS, Items.NETHERITE_CHESTPLATE, Items.NETHERITE_HOE, Items.NETHERITE_LEGGINGS, Items.NETHERITE_HELMET, Items.NETHERITE_PICKAXE, Items.NETHERITE_SWORD, Items.NETHERITE_SHOVEL, Items.PITCHER_POD, Items.PITCHER_PLANT, Items.TORCHFLOWER, Items.TORCHFLOWER_SEEDS, Items.POPPED_CHORUS_FRUIT, Items.CHORUS_FLOWER, Items.CHORUS_FRUIT, Items.CHORUS_PLANT);
+
+    public HashMap<GameTeamKey, List<List<BingoSlot>>> teamBingoCards = new HashMap<>();
     public HashMap<ServerPlayerEntity, List<List<BingoSlot>>> bingoCards = new HashMap<>();
 
-    public BingoActive(GameSpace gameSpace, GameActivity activity, BingoConfig config, ServerWorld world, BlockPos spawnPos) {
+    public BingoActive(GameSpace gameSpace, GameActivity activity, BingoConfig config, ServerWorld world, BlockPos spawnPos, Optional<TeamSelectionLobby> teamSelection, Optional<TeamManager> teamManager) {
         this.gameSpace = gameSpace;
         this.activity = activity;
         this.config = config;
         this.world = world;
         this.spawnPos = spawnPos;
+        this.teamSelection = teamSelection;
+        this.teamManager = teamManager;
         this.widgets = GlobalWidgets.addTo(activity);
         this.sidebar = widgets.addSidebar();
-
+        this.startTime = world.getTime();
+        this.playerTeams = new HashMap<>();
         world.setSpawnPos(spawnPos, 0);
         Bingo.activeGames.add(this);
         BingoActive.rules(activity);
 
+        teamSelection.ifPresent(action -> {
+            action.allocate(gameSpace.getPlayers().participants(), (key, plr) -> {
+                playerTeams.put(plr, key);
+                teamManager.get().addPlayerTo(plr, key);
+            });
+        });
         this.items = RegistryEntryList.of(world.getRegistryManager()
                 .getOrThrow(RegistryKeys.ITEM)
                 .streamEntries()
@@ -92,22 +106,96 @@ public class BingoActive {
         activity.listen(NetherPortalOpenEvent.EVENT, (_world, _pos) -> config.hasNether() ? EventResult.ALLOW : EventResult.DENY);
         activity.listen(EndPortalOpenEvent.EVENT, (_context, _result) -> config.hasEnd() ? EventResult.ALLOW : EventResult.DENY);
         sidebar.setTitle(Text.translatable("gameType.bingo.bingo").formatted(Formatting.GOLD));
-        sidebar.set(content -> {
-           content.add(ScreenTexts.EMPTY);
-           content.add(Text.translatable("bingo.sidebar"));
-           content.add(Text.translatable("bingo.sidebar.desc"));
-           content.add(Text.translatable("bingo.sidebar.desc2"));
-           content.add(ScreenTexts.EMPTY);
-        });
-        gameSpace.getPlayers().forEach(plr -> {
+        updateSidebar();
+        List<List<BingoSlot>> universalCard;
+        if (!config.separate()) {
+            universalCard = generateBingoCard();
+        } else {
+            universalCard = null;
+        }
+
+        gameSpace.getPlayers().participants().forEach(plr -> {
             plr.changeGameMode(GameMode.SURVIVAL);
-            bingoCards.put(plr, generateBingoCard());
+            if (!config.separate()) {
+                List<List<BingoSlot>> card = new ArrayList<>();
+                if (playerTeams.containsKey(plr)) {
+                    GameTeamKey key = playerTeams.get(plr);
+                    if (teamBingoCards.containsKey(key)) {
+                        card = teamBingoCards.get(key);
+                    } else {
+                        deepCopyCard(universalCard, card);
+                        teamBingoCards.put(key, card);
+                    }
+                } else {
+                    deepCopyCard(universalCard, card);
+                }
+                bingoCards.put(plr, card);
+            } else {
+                if (playerTeams.containsKey(plr)) {
+                    GameTeamKey key = playerTeams.get(plr);
+                    bingoCards.put(plr, teamBingoCards.computeIfAbsent(key, (_key) -> generateBingoCard()));
+                } else {
+                    bingoCards.put(plr, generateBingoCard());
+                }
+            }
             world.getServer().getCommandManager().sendCommandTree(plr);
             sidebar.addPlayer(plr);
             BingoCardCommand.showGui(plr, plr);
+            plr.sendMessage(Text.translatable("bingo.config.enabled_options"));
+            if (config.lockout()) {
+                String key = "bingo.config.lockout";
+                plr.sendMessage(Text.translatable(key).formatted(Formatting.GOLD).styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.translatable(key + ".desc")))));
+            }
+            if (config.hardMode()) {
+                String key = "bingo.config.hard_mode";
+                plr.sendMessage(Text.translatable(key).formatted(Formatting.GOLD).styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.translatable(key + ".desc")))));
+            }
+            if (config.genericArmorTrimDrops()) {
+                String key = "bingo.config.generic_armor_trim_drops";
+                plr.sendMessage(Text.translatable(key).formatted(Formatting.GOLD).styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.translatable(key + ".desc")))));
+            }
+            if (config.genericSherdDrops()) {
+                String key = "bingo.config.generic_sherd_drops";
+                plr.sendMessage(Text.translatable(key).formatted(Formatting.GOLD).styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.translatable(key + ".desc")))));
+            }
+            if (config.genericMusicDiscDrops()) {
+                String key = "bingo.config.generic_music_disc_drops";
+                plr.sendMessage(Text.translatable(key).formatted(Formatting.GOLD).styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.translatable(key + ".desc")))));
+            }
         });
     }
 
+    private void deepCopyCard(List<List<BingoSlot>> original, List<List<BingoSlot>> copy) {
+        // deep copy is necessary so that the underlying object references don't get shared
+        for (int colIndex = 0; colIndex < 5; colIndex++) {
+            List<BingoSlot> row = new ArrayList<>();
+            for (int rowIndex = 0; rowIndex < 5; rowIndex++) {
+                row.add(rowIndex, new BingoSlot(original.get(colIndex).get(rowIndex)));
+            }
+            copy.add(colIndex, row);
+        }
+    }
+
+    private void updateSidebar() {
+        sidebar.set(content -> {
+            content.add(ScreenTexts.EMPTY);
+            content.add(Text.translatable("bingo.sidebar"));
+            content.add(Text.translatable("bingo.sidebar.desc"));
+            content.add(Text.translatable("bingo.sidebar.desc2"));
+            if (config.timeLimit() != 0) {
+                long timeLeft = (long) Math.abs(Math.floor((world.getTime() / 20) - (startTime / 20)) - config.timeLimit());
+                long minutes = timeLeft / 60;
+                String seconds;
+                if (timeLeft % 60 > 10) {
+                    seconds = Long.toString(timeLeft % 60);
+                } else {
+                    seconds = "0" + timeLeft % 60;
+                }
+                content.add(Text.translatable("bingo.sidebar.time_left", minutes, seconds));
+            }
+            content.add(ScreenTexts.EMPTY);
+        });
+    }
     private boolean checkForWin(ServerPlayerEntity plr) {
         List<List<BingoSlot>> bingoCard = bingoCards.get(plr);
 
@@ -165,22 +253,28 @@ public class BingoActive {
         }
         return horizontalWin || verticalWin || diagonalWin;
     }
-
+    private boolean isSameItem(Item item, Item otherItem) {
+        return (item.equals(otherItem) ||
+                config.genericSherdDrops() && item.getDefaultStack().getRegistryEntry().getIdAsString().contains("sherd") && otherItem.getDefaultStack().getRegistryEntry().getIdAsString().contains("sherd") ||
+                config.genericMusicDiscDrops() && item.getDefaultStack().getRegistryEntry().getIdAsString().contains("disc") && otherItem.getDefaultStack().getRegistryEntry().getIdAsString().contains("disc") ||
+                config.genericArmorTrimDrops() && item instanceof SmithingTemplateItem && otherItem instanceof SmithingTemplateItem);
+    }
     private void checkForScore(ServerPlayerEntity plr, ItemStack stack) {
         List<List<BingoSlot>> bingoCard = bingoCards.get(plr);
         int colIndex = 99;
         int rowIndex = 99;
         for (List<BingoSlot> col : bingoCard) {
-            for (BingoSlot slot: col.stream().filter(slot -> !slot.marked()).toList()) {
-                if (slot.item().equals(stack.getItem())) {
+            for (BingoSlot slot: col.stream().filter(slot -> !slot.marked() && !slot.locked()).toList()) {
+                if (isSameItem(slot.item(), stack.getItem())) {
                     rowIndex = col.indexOf(slot);
                     colIndex = bingoCard.indexOf(col);
+                    break;
                 }
             }
         }
         if (colIndex != 99 ) {
             ServerWorld plrWorld = plr.getWorld();
-            bingoCard.get(colIndex).set(rowIndex, new BingoSlot(stack.getItem(), true));
+            bingoCard.get(colIndex).set(rowIndex, new BingoSlot(stack.getItem(), true, config.lockout()));
             plrWorld.spawnParticles(ParticleTypes.TOTEM_OF_UNDYING, plr.getX(), plr.getY(), plr.getZ(), 32, 1, 1, 1, 1);
             plrWorld.playSound(null, plr.getBlockPos(), SoundEvents.ENTITY_FIREWORK_ROCKET_BLAST, SoundCategory.PLAYERS, 1, 1);
             String plrName;
@@ -188,6 +282,25 @@ public class BingoActive {
                 plrName = plr.getDisplayName().getString();
             } else {
                 plrName = plr.getName().getString();
+            }
+
+            if (config.lockout()) {
+                bingoCards.forEach((_plr, card) -> {
+                    int colIndex2 = 99;
+                    int rowIndex2 = 99;
+                    for (List<BingoSlot> col : card) {
+                        for (BingoSlot slot : col) {
+                            if (!slot.locked() && !slot.marked() && isSameItem(slot.item(), stack.getItem())) {
+                                rowIndex2 = col.indexOf(slot);
+                                colIndex2 = card.indexOf(col);
+                                break;
+                            }
+                        }
+                    }
+                    if (colIndex2 != 99) {
+                        card.get(colIndex2).set(rowIndex2, new BingoSlot(stack.getItem(), false, true));
+                    }
+                });
             }
 
             gameSpace.getPlayers().sendMessage(Text.translatable("bingo.itempickup", plrName, stack.getName().copy().formatted(Formatting.GOLD)));
@@ -213,6 +326,15 @@ public class BingoActive {
                 if (slot.item().equals(item)) {
                     item = generateItem(bingoCard);
                     break;
+                } else if (config.genericSherdDrops() && slot.item().getDefaultStack().getRegistryEntry().getIdAsString().contains("sherd") && item.getDefaultStack().getRegistryEntry().getIdAsString().contains("sherd")) {
+                    item = generateItem(bingoCard);
+                    break;
+                } else if (config.genericMusicDiscDrops() && slot.item().getDefaultStack().getRegistryEntry().getIdAsString().contains("disc") && item.getDefaultStack().getRegistryEntry().getIdAsString().contains("disc")) {
+                    item = generateItem(bingoCard);
+                    break;
+                } else if (config.genericArmorTrimDrops() && slot.item() instanceof SmithingTemplateItem && item instanceof SmithingTemplateItem) {
+                    item = generateItem(bingoCard);
+                    break;
                 }
             }
         }
@@ -225,7 +347,7 @@ public class BingoActive {
             List<BingoSlot> row = new ArrayList<>();
             for (int j = 0; j < 5; j++) {
                 Item item = generateItem(bingoCard);
-                row.add(new BingoSlot(item, false));
+                row.add(new BingoSlot(item, false, false));
             }
             bingoCard.add(row);
         }
@@ -254,9 +376,22 @@ public class BingoActive {
         activity.allow(GameRuleType.BREAK_BLOCKS);
         activity.allow(GameRuleType.HUNGER);
     }
-    public static void Open(GameSpace gameSpace, BingoConfig config, ServerWorld world, BlockPos spawnPos) {
+    public static void Open(GameSpace gameSpace, BingoConfig config, ServerWorld world, BlockPos spawnPos, Optional<TeamSelectionLobby> teamSelection) {
         gameSpace.setActivity(activity -> {
-            new BingoActive(gameSpace, activity, config, world, spawnPos);
+            Optional<TeamManager> maybeTeamManager = config.teams().map(teams -> {
+                TeamManager teamManager = TeamManager.addTo(activity);
+                TeamChat.addTo(activity, teamManager);
+
+                for (GameTeam team : config.teams().get()) {
+                    GameTeamConfig teamConfig = GameTeamConfig.builder(team.config())
+                            .setFriendlyFire(false)
+                            .build();
+
+                    teamManager.addTeam(team.key(), teamConfig);
+                }
+                return teamManager;
+            });
+            new BingoActive(gameSpace, activity, config, world, spawnPos, teamSelection, maybeTeamManager);
         });
     }
 
@@ -285,6 +420,11 @@ public class BingoActive {
                 plr.sendMessage(Text.translatable("bingo.respawning", (timeLeft + 20) / 20), true);
             }
         });
+
+        if (config.timeLimit() != 0 && time % 20 == 0) {
+            updateSidebar();
+        }
+
         playersToRemove.forEach(plr -> playersRespawning.remove(plr));
         playersToRemove.clear();
     }

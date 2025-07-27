@@ -9,12 +9,14 @@ import xyz.nucleoid.plasmid.api.game.GameActivity;
 import xyz.nucleoid.plasmid.api.game.GameResult;
 import xyz.nucleoid.plasmid.api.game.GameSpace;
 import xyz.nucleoid.plasmid.api.game.common.GameWaitingLobby;
+import xyz.nucleoid.plasmid.api.game.common.team.TeamSelectionLobby;
 import xyz.nucleoid.plasmid.api.game.event.GameActivityEvents;
 import xyz.nucleoid.plasmid.api.game.event.GamePlayerEvents;
 import xyz.nucleoid.plasmid.api.game.player.JoinOffer;
 import xyz.nucleoid.stimuli.event.EventResult;
 import xyz.nucleoid.stimuli.event.player.PlayerDamageEvent;
 
+import java.util.Optional;
 import java.util.Set;
 
 public class BingoWaiting {
@@ -23,13 +25,15 @@ public class BingoWaiting {
     BingoConfig config;
     ServerWorld world;
     BlockPos spawnPos;
+    Optional<TeamSelectionLobby> teamSelection;
 
-    public BingoWaiting(GameSpace gameSpace, GameActivity activity, BingoConfig config, ServerWorld world, BlockPos spawnPos) {
+    public BingoWaiting(GameSpace gameSpace, GameActivity activity, BingoConfig config, ServerWorld world, BlockPos spawnPos, Optional<TeamSelectionLobby> teamSelection) {
         this.gameSpace = gameSpace;
         this.activity = activity;
         this.config = config;
         this.world = world;
         this.spawnPos = spawnPos;
+        this.teamSelection = teamSelection;
 
         gameSpace.getPlayers().forEach((plr) -> {
             plr.teleport(world, spawnPos.getX(), spawnPos.getY(), spawnPos.getZ(), Set.of(), 0, 0, false);
@@ -37,7 +41,7 @@ public class BingoWaiting {
         });
 
         activity.listen(GameActivityEvents.REQUEST_START, () -> {
-            BingoActive.Open(gameSpace, config, world, spawnPos);
+            BingoActive.Open(gameSpace, config, world, spawnPos, teamSelection);
             return GameResult.ok();
         });
 
@@ -46,11 +50,14 @@ public class BingoWaiting {
         activity.listen(GamePlayerEvents.ACCEPT, acceptor ->
                 acceptor.teleport(world, spawnPos.toCenterPos())
                         .thenRunForEach(plr -> plr.changeGameMode(GameMode.ADVENTURE)));
+
+
         GameWaitingLobby.addTo(activity, config.playerConfig());
     }
     public static void Open(GameSpace gameSpace, BingoConfig config, ServerWorld world, BlockPos spawnPos) {
         gameSpace.setActivity(activity ->  {
-            new BingoWaiting(gameSpace, activity, config, world, spawnPos);
+            Optional<TeamSelectionLobby> teamSelection = config.teams().map(teams -> TeamSelectionLobby.addTo(activity, teams));
+            new BingoWaiting(gameSpace, activity, config, world, spawnPos, teamSelection);
         });
     }
 }
