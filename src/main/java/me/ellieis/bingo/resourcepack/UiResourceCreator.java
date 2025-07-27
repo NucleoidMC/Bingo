@@ -8,15 +8,12 @@ import eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import it.unimi.dsi.fastutil.chars.Char2IntMap;
 import it.unimi.dsi.fastutil.chars.Char2IntOpenHashMap;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.DyedColorComponent;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.Pair;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -28,7 +25,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
 import static me.ellieis.bingo.Bingo.identifier;
@@ -76,76 +72,10 @@ public class UiResourceCreator {
     private static final char ANVIL_SPACE0 = character++;
     private static final char ANVIL_SPACE1 = character++;
 
-    public static Supplier<GuiElementBuilder> arrow(String path) {
-        var model = genericIconRaw(Items.GREEN_STAINED_GLASS_PANE, path, BASE_MODEL, 0);
-        return () -> new GuiElementBuilder(model).setName(Text.empty()).hideDefaultTooltip();
-    }
 
     public static Supplier<GuiElementBuilder> icon16(String path) {
         var model = genericIconRaw(Items.ALLIUM, path, BASE_MODEL, 0);
         return () -> new GuiElementBuilder(model).setName(Text.empty()).hideDefaultTooltip();
-    }
-
-    public static Supplier<GuiElementBuilder> icon16Offset(String path, int offset) {
-        var model = genericIconRaw(Items.ALLIUM, path, BASE_MODEL, offset);
-        return () -> new GuiElementBuilder(model).setName(Text.empty()).hideDefaultTooltip();
-    }
-
-    public static Supplier<GuiElementBuilder> icon32(String path) {
-        var model = genericIconRaw(Items.ALLIUM, path, X32_MODEL, 0);
-        return () -> new GuiElementBuilder(model).setName(Text.empty()).hideDefaultTooltip();
-    }
-
-    public static IntFunction<GuiElementBuilder> icon32Color(String path) {
-        var model = genericIconRaw(Items.LEATHER_LEGGINGS, path, X32_MODEL, 0);
-        return (i) -> {
-            return new GuiElementBuilder(model).setName(Text.empty()).hideDefaultTooltip().setComponent(DataComponentTypes.DYED_COLOR, new DyedColorComponent(i));
-        };
-    }
-
-    public static IntFunction<GuiElementBuilder> icon16(String path, int size) {
-        var models = new ItemStack[size];
-
-        for (var i = 0; i < size; i++) {
-            models[i] = genericIconRaw(Items.ALLIUM, path + "_" + i, BASE_MODEL, 0);
-        }
-        return (i) -> new GuiElementBuilder(models[i]).setName(Text.empty()).hideDefaultTooltip();
-    }
-
-    public static IntFunction<GuiElementBuilder> horizontalProgress16(String path, int start, int stop, boolean reverse, int offset) {
-        return genericProgress(path, start, stop, reverse, BASE_MODEL, HORIZONTAL_PROGRESS, offset);
-    }
-
-    public static IntFunction<GuiElementBuilder> horizontalProgress32(String path, int start, int stop, boolean reverse) {
-        return genericProgress(path, start, stop, reverse, X32_MODEL, HORIZONTAL_PROGRESS, 0);
-    }
-
-    public static IntFunction<GuiElementBuilder> horizontalProgress32Right(String path, int start, int stop, boolean reverse) {
-        return genericProgress(path, start, stop, reverse, X32_RIGHT_MODEL, HORIZONTAL_PROGRESS, 0);
-    }
-
-    public static IntFunction<GuiElementBuilder> verticalProgress32(String path, int start, int stop, boolean reverse) {
-        return genericProgress(path, start, stop, reverse, X32_MODEL, VERTICAL_PROGRESS, 0);
-    }
-
-    public static IntFunction<GuiElementBuilder> verticalProgress32Right(String path, int start, int stop, boolean reverse) {
-        return genericProgress(path, start, stop, reverse, X32_RIGHT_MODEL, VERTICAL_PROGRESS, 0);
-    }
-
-    public static IntFunction<GuiElementBuilder> verticalProgress16(String path, int start, int stop, boolean reverse) {
-        return genericProgress(path, start, stop, reverse, BASE_MODEL, VERTICAL_PROGRESS, 0);
-    }
-
-    public static IntFunction<GuiElementBuilder> genericProgress(String path, int start, int stop, boolean reverse, String base, List<SlicedTexture> progressType, int offset) {
-
-        var models = new ItemStack[stop - start];
-
-        progressType.add(new SlicedTexture(path, start, stop, reverse));
-
-        for (var i = start; i < stop; i++) {
-            models[i - start] = genericIconRaw(Items.ALLIUM,  "gen/" + path + "_" + i, base, offset);
-        }
-        return (i) -> new GuiElementBuilder(models[i]).setName(Text.empty()).hideDefaultTooltip();
     }
 
     public static ItemStack genericIconRaw(Item item, String path, String base, int offset) {
@@ -171,45 +101,6 @@ public class UiResourceCreator {
 
         FONT_TEXTURES.add(texture);
         return new TextBuilders(Text.literal(builder.toString()).setStyle(STYLE));
-    }
-
-    public static Function<Text, Text> backgroundAnvil(String path) {
-        var builder = new StringBuilder().append(ANVIL_SPACE0);
-        var c = (character++);
-        builder.append(c);
-        builder.append(ANVIL_SPACE1);
-
-        var texture = new FontTexture(identifier("sgui/" + path), 13, 256, new char[][] { new char[] {c} });
-
-        FONT_TEXTURES.add(texture);
-        return new TextBuilders(Text.literal(builder.toString()).setStyle(STYLE));
-    }
-
-    public static char font(Identifier path, int ascent, int height) {
-        var c = (character++);
-        var texture = new FontTexture(path, ascent, height, new char[][] { new char[] {c} });
-        FONT_TEXTURES.add(texture);
-        return c;
-    }
-
-    public static Pair<Text, Text> polydexBackground(String path) {
-        var c = (character++);
-        var d = (character++);
-
-        var texture = new FontTexture(identifier("sgui/polydex/" + path), -4, 128, new char[][] {new char[] { c }, new char[] { d } });
-
-        FONT_TEXTURES.add(texture);
-
-        return new Pair<>(
-                Text.literal(Character.toString(c)).setStyle(STYLE),
-                Text.literal(Character.toString(d)).setStyle(STYLE)
-        );
-    }
-
-    public static char space(int width) {
-        var c = character++;
-        SPACES.put(c, width);
-        return c;
     }
 
     public static void setup() {

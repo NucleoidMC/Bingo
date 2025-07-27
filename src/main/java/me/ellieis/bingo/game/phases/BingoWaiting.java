@@ -12,6 +12,8 @@ import xyz.nucleoid.plasmid.api.game.common.GameWaitingLobby;
 import xyz.nucleoid.plasmid.api.game.event.GameActivityEvents;
 import xyz.nucleoid.plasmid.api.game.event.GamePlayerEvents;
 import xyz.nucleoid.plasmid.api.game.player.JoinOffer;
+import xyz.nucleoid.stimuli.event.EventResult;
+import xyz.nucleoid.stimuli.event.player.PlayerDamageEvent;
 
 import java.util.Set;
 
@@ -39,6 +41,7 @@ public class BingoWaiting {
             return GameResult.ok();
         });
 
+        activity.listen(PlayerDamageEvent.EVENT, (_plr, _source, _damage) -> EventResult.DENY);
         activity.listen(GamePlayerEvents.OFFER, JoinOffer::accept);
         activity.listen(GamePlayerEvents.ACCEPT, acceptor ->
                 acceptor.teleport(world, spawnPos.toCenterPos())

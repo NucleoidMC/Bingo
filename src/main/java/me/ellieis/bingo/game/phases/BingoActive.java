@@ -1,23 +1,23 @@
 package me.ellieis.bingo.game.phases;
 
-import it.unimi.dsi.fastutil.ints.IntList;
 import me.ellieis.bingo.Bingo;
+import me.ellieis.bingo.BingoCardCommand;
 import me.ellieis.bingo.ItemCraftEvent;
 import me.ellieis.bingo.game.config.BingoConfig;
-import net.minecraft.component.type.FireworkExplosionComponent;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.item.*;
+import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.entry.RegistryEntryList;
-import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.screen.ScreenTexts;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
-import net.minecraft.util.DyeColor;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
@@ -33,7 +33,6 @@ import xyz.nucleoid.plasmid.api.game.rule.GameRuleType;
 import xyz.nucleoid.stimuli.event.EventResult;
 import xyz.nucleoid.stimuli.event.item.ItemPickupEvent;
 import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
-import xyz.nucleoid.stimuli.event.player.PlayerInventoryActionEvent;
 import xyz.nucleoid.stimuli.event.world.EndPortalOpenEvent;
 import xyz.nucleoid.stimuli.event.world.NetherPortalOpenEvent;
 
@@ -92,10 +91,20 @@ public class BingoActive {
         activity.listen(ItemCraftEvent.EVENT, this::onCraft);
         activity.listen(NetherPortalOpenEvent.EVENT, (_world, _pos) -> config.hasNether() ? EventResult.ALLOW : EventResult.DENY);
         activity.listen(EndPortalOpenEvent.EVENT, (_context, _result) -> config.hasEnd() ? EventResult.ALLOW : EventResult.DENY);
+        sidebar.setTitle(Text.translatable("gameType.bingo.bingo").formatted(Formatting.GOLD));
+        sidebar.set(content -> {
+           content.add(ScreenTexts.EMPTY);
+           content.add(Text.translatable("bingo.sidebar"));
+           content.add(Text.translatable("bingo.sidebar.desc"));
+           content.add(Text.translatable("bingo.sidebar.desc2"));
+           content.add(ScreenTexts.EMPTY);
+        });
         gameSpace.getPlayers().forEach(plr -> {
             plr.changeGameMode(GameMode.SURVIVAL);
             bingoCards.put(plr, generateBingoCard());
             world.getServer().getCommandManager().sendCommandTree(plr);
+            sidebar.addPlayer(plr);
+            BingoCardCommand.showGui(plr, plr);
         });
     }
 
@@ -172,9 +181,16 @@ public class BingoActive {
         if (colIndex != 99 ) {
             ServerWorld plrWorld = plr.getWorld();
             bingoCard.get(colIndex).set(rowIndex, new BingoSlot(stack.getItem(), true));
-            IntList colors = IntList.of(DyeColor.ORANGE.getFireworkColor());
-            FireworkExplosionComponent explode = new FireworkExplosionComponent(FireworkExplosionComponent.Type.BURST, colors, IntList.of(), false, false);
+            plrWorld.spawnParticles(ParticleTypes.TOTEM_OF_UNDYING, plr.getX(), plr.getY(), plr.getZ(), 32, 1, 1, 1, 1);
             plrWorld.playSound(null, plr.getBlockPos(), SoundEvents.ENTITY_FIREWORK_ROCKET_BLAST, SoundCategory.PLAYERS, 1, 1);
+            String plrName;
+            if (plr.getDisplayName() != null) {
+                plrName = plr.getDisplayName().getString();
+            } else {
+                plrName = plr.getName().getString();
+            }
+
+            gameSpace.getPlayers().sendMessage(Text.translatable("bingo.itempickup", plrName, stack.getName().copy().formatted(Formatting.GOLD)));
             if (checkForWin(plr)) {
                 End();
             }

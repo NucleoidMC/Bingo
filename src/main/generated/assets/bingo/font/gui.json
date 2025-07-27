@@ -1,1 +1,1 @@
-{"providers":[{"type":"space","advances":{"a":-8,"b":-168,"c":-60,"d":-119,"f":1}},{"type":"bitmap","file":"bingo:sgui/game_portal_9x6.png","ascent":13,"height":256,"chars":["e"]}]}
+{"providers":[{"type":"space","advances":{"a":-8,"b":-168,"c":-60,"d":-119}},{"type":"bitmap","file":"bingo:sgui/bingo_card.png","ascent":13,"height":256,"chars":["e"]}]}

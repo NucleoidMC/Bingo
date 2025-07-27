@@ -37,7 +37,7 @@ public class Bingo implements ModInitializer {
     @Override
     public void onInitialize() {
         GameType.register(Bingo.identifier("bingo"), BingoConfig.CODEC, BingoLoading::Open);
-        CommandRegistrationCallback.EVENT.register(((commandDispatcher, commandRegistryAccess, registrationEnvironment) -> ShowBingoCardCommand.register(commandDispatcher)));
+        CommandRegistrationCallback.EVENT.register(((commandDispatcher, commandRegistryAccess, registrationEnvironment) -> BingoCardCommand.register(commandDispatcher)));
         PolymerResourcePackUtils.addModAssets(MOD_ID);
         GuiTextures.register();
     }
