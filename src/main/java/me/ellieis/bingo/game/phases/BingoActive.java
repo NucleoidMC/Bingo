@@ -23,7 +23,6 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.GameMode;
 import xyz.nucleoid.plasmid.api.game.GameActivity;
@@ -221,7 +220,17 @@ public class BingoActive {
                     }
                 }
             }
-            return claimedSlotCount >= 13;
+            int threshhold;
+            if (teamManager.isPresent()) {
+                int teamCount = 0;
+                for (GameTeam _team : teamManager.get()) {
+                    teamCount++;
+                }
+                threshhold = (int) Math.ceil((double) 25 / teamCount);
+            } else {
+                threshhold = (int) Math.ceil((double) 25 / gameSpace.getPlayers().participants().size());
+            }
+            return claimedSlotCount >= threshhold;
         }
         boolean horizontalWin = true;
         for (List<BingoSlot> col : bingoCard) {

@@ -45,7 +45,7 @@
   "bingo.config.separate": "Separate",
   "bingo.config.separate.desc": "Each player or team gets a different bingo card",
   "bingo.config.lockout": "Lockout",
-  "bingo.config.lockout.desc": "If an opposing player claims a slot, no one else can claim that slot. Claim 13 slots to win.",
+  "bingo.config.lockout.desc": "If an opposing player claims a slot, no one else can claim that slot. Claim more slots than any player / team can to win.",
   "bingo.config.generic_armor_trim_drops": "Generic Armor Trim Drops",
   "bingo.config.generic_armor_trim_drops.desc": "Any armor trim variant will count as a score.",
   "bingo.config.generic_sherd_drops": "Generic Sherd Drops",
