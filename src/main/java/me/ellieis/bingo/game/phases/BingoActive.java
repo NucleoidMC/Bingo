@@ -32,6 +32,7 @@ import xyz.nucleoid.plasmid.api.game.GameSpace;
 import xyz.nucleoid.plasmid.api.game.common.GlobalWidgets;
 import xyz.nucleoid.plasmid.api.game.common.team.*;
 import xyz.nucleoid.plasmid.api.game.common.widget.SidebarWidget;
+import xyz.nucleoid.plasmid.api.game.config.GameConfig;
 import xyz.nucleoid.plasmid.api.game.event.GameActivityEvents;
 import xyz.nucleoid.plasmid.api.game.event.GamePlayerEvents;
 import xyz.nucleoid.plasmid.api.game.player.JoinOffer;
@@ -50,6 +51,7 @@ public class BingoActive {
     final long startTime;
     boolean gameWon = false;
     long gameWinTime = 0;
+    long timeoutTime = 0;
     GameActivity activity;
     BingoConfig config;
     ServerWorld world;
@@ -79,6 +81,7 @@ public class BingoActive {
         this.widgets = GlobalWidgets.addTo(activity);
         this.sidebar = widgets.addSidebar();
         this.startTime = world.getTime();
+        this.timeoutTime = config.timeLimit() + this.startTime;
         this.playerTeams = new HashMap<>();
         world.setSpawnPos(spawnPos, 0);
         Bingo.activeGames.add(this);
@@ -112,7 +115,7 @@ public class BingoActive {
         activity.listen(ItemCraftEvent.EVENT, this::onCraft);
         activity.listen(NetherPortalOpenEvent.EVENT, (_world, _pos) -> config.hasNether() ? EventResult.ALLOW : EventResult.DENY);
         activity.listen(EndPortalOpenEvent.EVENT, (_context, _result) -> config.hasEnd() ? EventResult.ALLOW : EventResult.DENY);
-        sidebar.setTitle(Text.translatable("gameType.bingo.bingo").formatted(Formatting.GOLD));
+        sidebar.setTitle(GameConfig.shortName(activity.getGameSpace().getMetadata().sourceConfig()).copy().formatted(Formatting.GOLD));
         updateSidebar();
         List<List<BingoSlot>> universalCard;
         if (!config.separate()) {
@@ -297,6 +300,7 @@ public class BingoActive {
         }
         if (colIndex != 99 ) {
             ServerWorld plrWorld = plr.getWorld();
+            // there doesn't need to be specific code for updating team member's bingo cards as they all share the same underlying references
             bingoCard.get(colIndex).set(rowIndex, new BingoSlot(stack.getItem(), true, config.lockout()));
             plrWorld.spawnParticles(ParticleTypes.TOTEM_OF_UNDYING, plr.getX(), plr.getY(), plr.getZ(), 32, 1, 1, 1, 1);
             plrWorld.playSound(null, plr.getBlockPos(), SoundEvents.ENTITY_FIREWORK_ROCKET_BLAST, SoundCategory.PLAYERS, 1, 1);
@@ -437,16 +441,24 @@ public class BingoActive {
         playersToRemove.clear();
         if (gameWon) {
             if (time - gameWinTime > SharedConstants.TICKS_PER_SECOND * 10) {
-                System.out.println("boobs");
                 gameSpace.close(GameCloseReason.FINISHED);
             }
         } else {
             if (config.timeLimit() != 0 && time % SharedConstants.TICKS_PER_SECOND == 0) {
+                if (time - timeoutTime >= 0) {
+                    End();
+                }
                 updateSidebar();
             }
         }
     }
 
+    private void End() {
+        // no player won
+        gameWon = true;
+        gameWinTime = gameSpace.getTime();
+        gameSpace.getPlayers().sendMessage(Text.translatable("bingo.win_message.timeout"));
+    }
     private void End(ServerPlayerEntity winner) {
         int claimedSlotCount = 0;
         for (List<BingoSlot> col : bingoCards.get(winner)) {

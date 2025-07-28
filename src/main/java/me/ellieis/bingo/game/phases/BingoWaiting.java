@@ -1,6 +1,5 @@
 package me.ellieis.bingo.game.phases;
 
-import me.ellieis.bingo.Bingo;
 import me.ellieis.bingo.game.config.BingoConfig;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
