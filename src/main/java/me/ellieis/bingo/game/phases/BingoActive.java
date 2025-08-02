@@ -13,6 +13,7 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.entry.RegistryEntryList;
 import net.minecraft.screen.ScreenTexts;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
@@ -25,6 +26,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.GameMode;
+import net.minecraft.world.GameRules;
 import xyz.nucleoid.plasmid.api.game.GameActivity;
 import xyz.nucleoid.plasmid.api.game.GameCloseReason;
 import xyz.nucleoid.plasmid.api.game.GameSpace;
@@ -147,7 +149,9 @@ public class BingoActive {
                     bingoCards.put(plr, generateBingoCard());
                 }
             }
-            world.getServer().getCommandManager().sendCommandTree(plr);
+            MinecraftServer server = world.getServer();
+            server.getCommandManager().sendCommandTree(plr);
+            world.getGameRules().get(GameRules.DO_MOB_SPAWNING).set(true, server);
             sidebar.addPlayer(plr);
             BingoCardCommand.showGui(plr, plr);
             plr.sendMessage(Text.translatable("bingo.config.enabled_options"));
