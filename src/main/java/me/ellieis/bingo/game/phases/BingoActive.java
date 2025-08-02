@@ -152,6 +152,7 @@ public class BingoActive {
             MinecraftServer server = world.getServer();
             server.getCommandManager().sendCommandTree(plr);
             world.getGameRules().get(GameRules.DO_MOB_SPAWNING).set(true, server);
+            world.setMobSpawnOptions(true);
             sidebar.addPlayer(plr);
             BingoCardCommand.showGui(plr, plr);
             plr.sendMessage(Text.translatable("bingo.config.enabled_options"));
