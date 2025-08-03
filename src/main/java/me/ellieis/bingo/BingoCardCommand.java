@@ -24,7 +24,7 @@ import static me.ellieis.bingo.resourcepack.GuiTextures.CLAIMED_SLOT;
 import static me.ellieis.bingo.resourcepack.GuiTextures.LOCKED_SLOT;
 
 public class BingoCardCommand {
-    public static void showGui(ServerPlayerEntity observer, ServerPlayerEntity plr) {
+    public static boolean showGui(ServerPlayerEntity observer, ServerPlayerEntity plr) {
         var type = ScreenHandlerType.GENERIC_9X6;
         SimpleGui gui = new SimpleGui(type, observer, false);
         Text title = Text.translatable(observer.equals(plr) ? "bingo.gui.card.title.self" : "bingo.gui.card.title.others", plr.getName());
@@ -37,7 +37,13 @@ public class BingoCardCommand {
 
         // items
         GameSpace gameSpace = GameSpaceManager.get().byWorld(plr.getWorld());
+        if (gameSpace == null) {
+            return false;
+        }
         List<List<BingoSlot>> bingoCard = Bingo.getGame(gameSpace).bingoCards.get(plr);
+        if (bingoCard == null) {
+            return false;
+        }
         for (int colIndex = 0; colIndex < 5; colIndex++) {
             List<BingoSlot> col = bingoCard.get(colIndex);
             for (int rowIndex = 0; rowIndex < 5; rowIndex++) {
@@ -63,6 +69,7 @@ public class BingoCardCommand {
         }
 
         gui.open();
+        return true;
     }
 
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {

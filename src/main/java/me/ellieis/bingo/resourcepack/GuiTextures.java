@@ -1,9 +1,7 @@
 package me.ellieis.bingo.resourcepack;
 
 import eu.pb4.polymer.resourcepack.extras.api.ResourcePackExtras;
-import eu.pb4.sgui.api.elements.GuiElement;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
-import net.minecraft.item.Item;
 import net.minecraft.text.Text;
 
 import java.util.function.Function;

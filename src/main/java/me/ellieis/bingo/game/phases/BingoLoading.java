@@ -1,9 +1,7 @@
 package me.ellieis.bingo.game.phases;
 
-import me.ellieis.bingo.Bingo;
 import me.ellieis.bingo.game.config.BingoConfig;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
-import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ChunkTicket;
 import net.minecraft.server.world.ChunkTicketType;
@@ -15,11 +13,9 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.GameMode;
+import net.minecraft.world.GameRules;
 import net.minecraft.world.Heightmap;
-import net.minecraft.world.dimension.DimensionOptions;
-import net.minecraft.world.dimension.DimensionType;
 import net.minecraft.world.dimension.DimensionTypes;
-import net.minecraft.world.gen.chunk.ChunkGenerator;
 import xyz.nucleoid.fantasy.RuntimeWorldConfig;
 import xyz.nucleoid.fantasy.util.VoidChunkGenerator;
 import xyz.nucleoid.plasmid.api.game.*;
@@ -74,17 +70,23 @@ public class BingoLoading {
             ServerWorld overworld = null;
             if (config.hasOverworld()) {
                 overworld = activity.getGameSpace().getWorlds().add(overworldConfig);
+                overworld.getGameRules().get(GameRules.DO_MOB_SPAWNING).set(true, server);
+                overworld.setMobSpawnOptions(true);
             }
 
             ServerWorld nether = null;
             if (config.hasNether()) {
                 nether = activity.getGameSpace().getWorlds().add(netherConfig);
+                nether.getGameRules().get(GameRules.DO_MOB_SPAWNING).set(true, server);
+                nether.setMobSpawnOptions(true);
             }
 
             ServerWorld end = null;
             if (config.hasEnd()) {
                 end = activity.getGameSpace().getWorlds().add(endConfig);
                 end.setEnderDragonFight(new EnderDragonFight(end, seed, EnderDragonFight.Data.DEFAULT));
+                end.getGameRules().get(GameRules.DO_MOB_SPAWNING).set(true, server);
+                end.setMobSpawnOptions(true);
             }
 
             ServerWorld starterWorld;
