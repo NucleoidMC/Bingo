@@ -35,7 +35,7 @@
   "bingo.gui.card.title.others": "%s's Bingo Card",
 
   "bingo.sidebar": "Get a bingo to win!",
-  "bingo.sidebar.desc": "Use /bingocard to",
+  "bingo.sidebar.desc": "Use !bingocard to",
   "bingo.sidebar.desc2": "see your bingo card.",
   "bingo.sidebar.time_left": "Time left: %02d:%02d",
 

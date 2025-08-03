@@ -26,7 +26,6 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.GameMode;
-import net.minecraft.world.GameRules;
 import xyz.nucleoid.plasmid.api.game.GameActivity;
 import xyz.nucleoid.plasmid.api.game.GameCloseReason;
 import xyz.nucleoid.plasmid.api.game.GameSpace;
@@ -41,6 +40,7 @@ import xyz.nucleoid.plasmid.api.game.rule.GameRuleType;
 import xyz.nucleoid.plasmid.api.util.PlayerRef;
 import xyz.nucleoid.stimuli.event.EventResult;
 import xyz.nucleoid.stimuli.event.item.ItemPickupEvent;
+import xyz.nucleoid.stimuli.event.player.PlayerChatEvent;
 import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
 import xyz.nucleoid.stimuli.event.world.EndPortalOpenEvent;
 import xyz.nucleoid.stimuli.event.world.NetherPortalOpenEvent;
@@ -52,7 +52,7 @@ public class BingoActive {
     final long startTime;
     boolean gameWon = false;
     long gameWinTime = 0;
-    long timeoutTime = 0;
+    long timeoutTime;
     GameActivity activity;
     BingoConfig config;
     ServerWorld world;
@@ -114,6 +114,26 @@ public class BingoActive {
         activity.listen(PlayerDeathEvent.EVENT, this::onDeath);
         activity.listen(ItemPickupEvent.EVENT, this::onItemPickup);
         activity.listen(ItemCraftEvent.EVENT, this::onCraft);
+        activity.listen(PlayerChatEvent.EVENT, (plr, message, params) -> {
+            String content = message.getContent().getString();
+            String[] args = content.split(" ");
+            if (args.length > 0) {
+                if (args[0].equals("!bingocard")) {
+                    if (args.length > 1) {
+                        ServerPlayerEntity otherPlr = gameSpace.getServer().getPlayerManager().getPlayer(args[1]);
+                        if (otherPlr != null) {
+                            if (BingoCardCommand.showGui(plr, otherPlr)) {
+                                return EventResult.DENY;
+                            }
+                        }
+                    }
+                    BingoCardCommand.showGui(plr, plr);
+                    return EventResult.DENY;
+                }
+            }
+
+            return EventResult.PASS;
+        });
         activity.listen(NetherPortalOpenEvent.EVENT, (_world, _pos) -> config.hasNether() ? EventResult.ALLOW : EventResult.DENY);
         activity.listen(EndPortalOpenEvent.EVENT, (_context, _result) -> config.hasEnd() ? EventResult.ALLOW : EventResult.DENY);
         sidebar.setTitle(GameConfig.shortName(activity.getGameSpace().getMetadata().sourceConfig()).copy().formatted(Formatting.GOLD));
@@ -151,8 +171,6 @@ public class BingoActive {
             }
             MinecraftServer server = world.getServer();
             server.getCommandManager().sendCommandTree(plr);
-            world.getGameRules().get(GameRules.DO_MOB_SPAWNING).set(true, server);
-            world.setMobSpawnOptions(true);
             sidebar.addPlayer(plr);
             BingoCardCommand.showGui(plr, plr);
             plr.sendMessage(Text.translatable("bingo.config.enabled_options"));
@@ -225,17 +243,17 @@ public class BingoActive {
                     }
                 }
             }
-            int threshhold;
+            int threshold;
             if (teamManager.isPresent()) {
                 int teamCount = 0;
                 for (GameTeam _team : teamManager.get()) {
                     teamCount++;
                 }
-                threshhold = (int) Math.ceil((double) 25 / teamCount);
+                threshold = (int) Math.ceil((double) 25 / teamCount);
             } else {
-                threshhold = (int) Math.ceil((double) 25 / gameSpace.getPlayers().participants().size());
+                threshold = (int) Math.ceil((double) 25 / gameSpace.getPlayers().participants().size());
             }
-            return claimedSlotCount >= threshhold;
+            return claimedSlotCount >= threshold;
         }
         boolean horizontalWin = true;
         for (List<BingoSlot> col : bingoCard) {
@@ -284,7 +302,6 @@ public class BingoActive {
             diagonalWin = true;
             for (int index = 4; index >= 0; index--) {
                 BingoSlot slot = bingoCard.get(4 - index).get(index);
-                System.out.println(slot);
                 if (!slot.marked()) {
                     diagonalWin = false;
                     break;
