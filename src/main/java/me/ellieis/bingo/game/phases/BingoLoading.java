@@ -40,7 +40,9 @@ public class BingoLoading {
             overworldConfig = new RuntimeWorldConfig()
                     .setGenerator(server.getOverworld().getChunkManager().getChunkGenerator())
                     .setDimensionType(DimensionTypes.OVERWORLD)
+                    .setShouldTickTime(true)
                     .setSeed(seed);
+
         } else {
             overworldConfig = null;
         }
@@ -50,6 +52,7 @@ public class BingoLoading {
             netherConfig = new RuntimeWorldConfig()
                     .setGenerator(Objects.requireNonNull(server.getWorld(ServerWorld.NETHER)).getChunkManager().getChunkGenerator())
                     .setDimensionType(DimensionTypes.THE_NETHER)
+                    .setShouldTickTime(true)
                     .setSeed(seed);
         } else {
             netherConfig = null;
@@ -60,6 +63,7 @@ public class BingoLoading {
             endConfig = new RuntimeWorldConfig()
                     .setGenerator(Objects.requireNonNull(server.getWorld(ServerWorld.END)).getChunkManager().getChunkGenerator())
                     .setDimensionType(DimensionTypes.THE_END)
+                    .setShouldTickTime(true)
                     .setSeed(seed);
         } else {
             endConfig = null;
