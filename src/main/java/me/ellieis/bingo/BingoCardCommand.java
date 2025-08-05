@@ -9,6 +9,7 @@ import eu.pb4.sgui.api.gui.SimpleGui;
 import me.ellieis.bingo.game.phases.BingoSlot;
 import me.ellieis.bingo.resourcepack.GuiTextures;
 import net.minecraft.command.argument.EntityArgumentType;
+import net.minecraft.datafixer.fix.ItemCustomNameToComponentFix;
 import net.minecraft.item.Items;
 import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.server.command.CommandManager;
@@ -51,13 +52,13 @@ public class BingoCardCommand {
                 BingoSlot slot = col.get(rowIndex);
                 if (slot.marked()) {
                     if (hasMainPack) {
-                        gui.setSlot(index, CLAIMED_SLOT.get().hideTooltip());
+                        gui.setSlot(index, CLAIMED_SLOT.get().setName(slot.item().getName()));
                     } else {
                         gui.setSlot(index, Items.LIME_STAINED_GLASS_PANE.getDefaultStack());
                     }
                 } else if (slot.locked()) {
                     if (hasMainPack) {
-                        gui.setSlot(index, LOCKED_SLOT.get().hideTooltip());
+                        gui.setSlot(index, LOCKED_SLOT.get().setName(slot.item().getName()));
                     } else {
                         gui.setSlot(index, Items.BARRIER.getDefaultStack());
                     }

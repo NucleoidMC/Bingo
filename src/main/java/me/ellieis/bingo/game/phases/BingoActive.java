@@ -9,6 +9,8 @@ import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.item.*;
 import net.minecraft.particle.ParticleTypes;
+import net.minecraft.recipe.RecipeEntry;
+import net.minecraft.recipe.RecipeManager;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.entry.RegistryEntryList;
@@ -169,6 +171,7 @@ public class BingoActive {
                     bingoCards.put(plr, generateBingoCard());
                 }
             }
+            plr.unlockRecipes(world.getRecipeManager().values());
             MinecraftServer server = world.getServer();
             server.getCommandManager().sendCommandTree(plr);
             sidebar.addPlayer(plr);
@@ -422,7 +425,8 @@ public class BingoActive {
         activity.allow(GameRuleType.INTERACTION);
         activity.allow(GameRuleType.CRAFTING);
         activity.allow(GameRuleType.BREAK_BLOCKS);
-        activity.allow(GameRuleType.HUNGER);
+        activity.deny(GameRuleType.HUNGER);
+        activity.deny(GameRuleType.SATURATED_REGENERATION);
     }
     public static void Open(GameSpace gameSpace, BingoConfig config, ServerWorld world, BlockPos spawnPos, Optional<TeamSelectionLobby> teamSelection) {
         gameSpace.setActivity(activity -> {
