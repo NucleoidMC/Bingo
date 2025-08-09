@@ -3,7 +3,10 @@ package me.ellieis.bingo.game.config;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.Identifier;
+import net.minecraft.world.gen.WorldPreset;
 import xyz.nucleoid.plasmid.api.game.common.config.PlayerLimiterConfig;
 import xyz.nucleoid.plasmid.api.game.common.config.WaitingLobbyConfig;
 import xyz.nucleoid.plasmid.api.game.common.team.GameTeamList;
@@ -12,12 +15,13 @@ import java.util.Optional;
 import java.util.OptionalInt;
 
 
-public record BingoConfig(int timeLimit, Optional<GameTeamList> teams, boolean hasOverworld, boolean hasNether, boolean hasEnd, boolean separate, boolean lockout, boolean hardMode, boolean genericMusicDiscDrops, boolean genericArmorTrimDrops, boolean genericSherdDrops, Identifier starterDimension, WaitingLobbyConfig playerConfig) {
+public record BingoConfig(int timeLimit, Optional<GameTeamList> teams, RegistryEntry<WorldPreset> preset, boolean hasOverworld, boolean hasNether, boolean hasEnd, boolean separate, boolean lockout, boolean hardMode, boolean genericMusicDiscDrops, boolean genericArmorTrimDrops, boolean genericSherdDrops, Identifier starterDimension, WaitingLobbyConfig playerConfig) {
 
     public static final MapCodec<BingoConfig> CODEC = RecordCodecBuilder.mapCodec(instance ->
         instance.group(
                 Codec.INT.optionalFieldOf("time_limit", 0).forGetter(BingoConfig::timeLimit),
                 GameTeamList.CODEC.optionalFieldOf("teams").forGetter(BingoConfig::teams),
+                WorldPreset.ENTRY_CODEC.fieldOf("preset").forGetter(BingoConfig::preset),
                 Codec.BOOL.optionalFieldOf("has_overworld", true).forGetter(BingoConfig::hasOverworld),
                 Codec.BOOL.optionalFieldOf("has_nether", true).forGetter(BingoConfig::hasNether),
                 Codec.BOOL.optionalFieldOf("has_end", true).forGetter(BingoConfig::hasEnd),

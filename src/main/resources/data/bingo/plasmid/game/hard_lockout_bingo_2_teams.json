@@ -1,5 +1,6 @@
 {
   "type": "bingo:bingo",
+  "preset": "minecraft:normal",
   "hard_mode": true,
   "generic_music_disc_drops": false,
   "generic_sherd_drops": false,

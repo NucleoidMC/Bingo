@@ -1,4 +1,5 @@
 {
   "type": "bingo:bingo",
+  "preset": "minecraft:normal",
   "separate": true
 }

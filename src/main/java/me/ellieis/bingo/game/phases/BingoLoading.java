@@ -2,6 +2,7 @@ package me.ellieis.bingo.game.phases;
 
 import me.ellieis.bingo.game.config.BingoConfig;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ChunkTicket;
 import net.minecraft.server.world.ChunkTicketType;
@@ -15,82 +16,63 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.GameRules;
 import net.minecraft.world.Heightmap;
+import net.minecraft.world.dimension.DimensionOptions;
+import net.minecraft.world.dimension.DimensionOptionsRegistryHolder;
 import net.minecraft.world.dimension.DimensionTypes;
+import net.minecraft.world.gen.WorldPreset;
+import net.minecraft.world.gen.WorldPresets;
 import xyz.nucleoid.fantasy.RuntimeWorldConfig;
 import xyz.nucleoid.fantasy.util.VoidChunkGenerator;
 import xyz.nucleoid.plasmid.api.game.*;
 import xyz.nucleoid.plasmid.api.game.event.GameActivityEvents;
 import xyz.nucleoid.plasmid.api.game.event.GamePlayerEvents;
 import xyz.nucleoid.plasmid.api.game.player.JoinOffer;
+import xyz.nucleoid.plasmid.api.game.world.GameSpaceWorlds;
 
 import java.util.Objects;
 
 public class BingoLoading {
+
+    private static ServerWorld addWorld(GameActivity activity, WorldPreset preset, RegistryKey<DimensionOptions> worldKey, long seed) {
+        DimensionOptionsRegistryHolder optionsMap = preset.createDimensionsRegistryHolder();
+        GameSpaceWorlds worlds = activity.getGameSpace().getWorlds();
+
+        DimensionOptions options = optionsMap.getOrEmpty(worldKey).orElseThrow();
+
+        RuntimeWorldConfig config = new RuntimeWorldConfig()
+                .setDimensionType(options.dimensionTypeEntry())
+                .setGenerator(options.chunkGenerator())
+                .setGameRule(GameRules.DO_MOB_SPAWNING, true)
+                .setSeed(seed)
+                .setShouldTickTime(true);
+        ServerWorld world = worlds.add(config);
+        world.setMobSpawnOptions(true);
+        return world;
+    }
     @SuppressWarnings("deprecation")
     public static GameOpenProcedure Open(GameOpenContext<BingoConfig> context) {
         BingoConfig config = context.config();
 
-        MinecraftServer server = context.server();
-        long seed = Random.create().nextLong();
         RuntimeWorldConfig waitingWorldConfig = new RuntimeWorldConfig()
                 .setGenerator(new VoidChunkGenerator(context.server()));
 
-        RuntimeWorldConfig overworldConfig;
-        if (config.hasOverworld()) {
-            overworldConfig = new RuntimeWorldConfig()
-                    .setGenerator(server.getOverworld().getChunkManager().getChunkGenerator())
-                    .setDimensionType(DimensionTypes.OVERWORLD)
-                    .setShouldTickTime(true)
-                    .setSeed(seed);
-
-        } else {
-            overworldConfig = null;
-        }
-
-        RuntimeWorldConfig netherConfig;
-        if (config.hasNether()) {
-            netherConfig = new RuntimeWorldConfig()
-                    .setGenerator(Objects.requireNonNull(server.getWorld(ServerWorld.NETHER)).getChunkManager().getChunkGenerator())
-                    .setDimensionType(DimensionTypes.THE_NETHER)
-                    .setShouldTickTime(true)
-                    .setSeed(seed);
-        } else {
-            netherConfig = null;
-        }
-
-        RuntimeWorldConfig endConfig;
-        if (config.hasEnd()) {
-            endConfig = new RuntimeWorldConfig()
-                    .setGenerator(Objects.requireNonNull(server.getWorld(ServerWorld.END)).getChunkManager().getChunkGenerator())
-                    .setDimensionType(DimensionTypes.THE_END)
-                    .setShouldTickTime(true)
-                    .setSeed(seed);
-        } else {
-            endConfig = null;
-        }
-
         return context.open((activity) -> {
             ServerWorld waitingWorld = activity.getGameSpace().getWorlds().add(waitingWorldConfig);
+            long seed = Random.create().nextLong();
             ServerWorld overworld = null;
             if (config.hasOverworld()) {
-                overworld = activity.getGameSpace().getWorlds().add(overworldConfig);
-                overworld.getGameRules().get(GameRules.DO_MOB_SPAWNING).set(true, server);
-                overworld.setMobSpawnOptions(true);
+                overworld = addWorld(activity, config.preset().value(), DimensionOptions.OVERWORLD, seed);
             }
 
             ServerWorld nether = null;
             if (config.hasNether()) {
-                nether = activity.getGameSpace().getWorlds().add(netherConfig);
-                nether.getGameRules().get(GameRules.DO_MOB_SPAWNING).set(true, server);
-                nether.setMobSpawnOptions(true);
+                nether = addWorld(activity, config.preset().value(), DimensionOptions.NETHER, seed);
             }
 
             ServerWorld end = null;
             if (config.hasEnd()) {
-                end = activity.getGameSpace().getWorlds().add(endConfig);
+                end = addWorld(activity, config.preset().value(), DimensionOptions.END, seed);
                 end.setEnderDragonFight(new EnderDragonFight(end, seed, EnderDragonFight.Data.DEFAULT));
-                end.getGameRules().get(GameRules.DO_MOB_SPAWNING).set(true, server);
-                end.setMobSpawnOptions(true);
             }
 
             ServerWorld starterWorld;
