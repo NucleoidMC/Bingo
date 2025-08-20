@@ -5,12 +5,12 @@ import me.ellieis.bingo.BingoCardCommand;
 import me.ellieis.bingo.ItemCraftEvent;
 import me.ellieis.bingo.game.config.BingoConfig;
 import net.minecraft.SharedConstants;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.*;
 import net.minecraft.particle.ParticleTypes;
-import net.minecraft.recipe.RecipeEntry;
-import net.minecraft.recipe.RecipeManager;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.entry.RegistryEntryList;
@@ -26,9 +26,9 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.GameMode;
-import net.minecraft.world.gen.WorldPresets;
 import xyz.nucleoid.plasmid.api.game.GameActivity;
 import xyz.nucleoid.plasmid.api.game.GameCloseReason;
 import xyz.nucleoid.plasmid.api.game.GameSpace;
@@ -38,6 +38,7 @@ import xyz.nucleoid.plasmid.api.game.common.widget.SidebarWidget;
 import xyz.nucleoid.plasmid.api.game.config.GameConfig;
 import xyz.nucleoid.plasmid.api.game.event.GameActivityEvents;
 import xyz.nucleoid.plasmid.api.game.event.GamePlayerEvents;
+import xyz.nucleoid.plasmid.api.game.player.JoinIntent;
 import xyz.nucleoid.plasmid.api.game.player.JoinOffer;
 import xyz.nucleoid.plasmid.api.game.rule.GameRuleType;
 import xyz.nucleoid.plasmid.api.util.PlayerRef;
@@ -49,6 +50,7 @@ import xyz.nucleoid.stimuli.event.world.EndPortalOpenEvent;
 import xyz.nucleoid.stimuli.event.world.NetherPortalOpenEvent;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class BingoActive {
     public GameSpace gameSpace;
@@ -64,16 +66,27 @@ public class BingoActive {
     SidebarWidget sidebar;
     Optional<TeamSelectionLobby> teamSelection;
     Optional<TeamManager> teamManager;
-    HashMap<ServerPlayerEntity, GameTeamKey> playerTeams;
+    HashMap<PlayerRef, GameTeamKey> playerTeams;
     HashMap<ServerPlayerEntity, Long> playersRespawning = new HashMap<>();
+    HashMap<PlayerRef, PlayerPos> lastPlayerPos = new HashMap<>();
     ArrayList<ServerPlayerEntity> playersToRemove = new ArrayList<>();
     RegistryEntryList<Item> items;
     List<Item> disallowedItems = List.of(Items.KNOWLEDGE_BOOK, Items.DEBUG_STICK, Items.LIGHT, Items.BEDROCK, Items.VAULT, Items.PLAYER_HEAD, Items.INFESTED_COBBLESTONE, Items.INFESTED_DEEPSLATE, Items.INFESTED_STONE, Items.INFESTED_CHISELED_STONE_BRICKS, Items.INFESTED_CRACKED_STONE_BRICKS, Items.INFESTED_MOSSY_STONE_BRICKS, Items.INFESTED_STONE_BRICKS, Items.SPAWNER, Items.TRIAL_SPAWNER, Items.END_PORTAL_FRAME, Items.BARRIER, Items.STRUCTURE_BLOCK, Items.STRUCTURE_VOID, Items.SUSPICIOUS_GRAVEL, Items.SUSPICIOUS_SAND, Items.SMALL_AMETHYST_BUD, Items.MEDIUM_AMETHYST_BUD, Items.LARGE_AMETHYST_BUD, Items.PETRIFIED_OAK_SLAB, Items.REINFORCED_DEEPSLATE, Items.BUDDING_AMETHYST, Items.FARMLAND, Items.FROGSPAWN);
     List<Item> hardItems = List.of(Items.CREEPER_HEAD, Items.DRAGON_HEAD, Items.PIGLIN_HEAD, Items.ZOMBIE_HEAD, Items.ELYTRA, Items.DRAGON_BREATH, Items.BEACON, Items.NETHER_STAR, Items.WITHER_SKELETON_SKULL, Items.CHAINMAIL_CHESTPLATE, Items.CHAINMAIL_BOOTS, Items.CHAINMAIL_HELMET, Items.CHAINMAIL_LEGGINGS, Items.NETHERITE_INGOT, Items.NETHERITE_AXE, Items.NETHERITE_BLOCK, Items.NETHERITE_BOOTS, Items.NETHERITE_CHESTPLATE, Items.NETHERITE_HOE, Items.NETHERITE_LEGGINGS, Items.NETHERITE_HELMET, Items.NETHERITE_PICKAXE, Items.NETHERITE_SWORD, Items.NETHERITE_SHOVEL, Items.PITCHER_POD, Items.PITCHER_PLANT, Items.TORCHFLOWER, Items.TORCHFLOWER_SEEDS, Items.POPPED_CHORUS_FRUIT, Items.CHORUS_FLOWER, Items.CHORUS_FRUIT);
-
+    final List<List<BingoSlot>> universalCard;
     public HashMap<GameTeamKey, List<List<BingoSlot>>> teamBingoCards = new HashMap<>();
-    public HashMap<ServerPlayerEntity, List<List<BingoSlot>>> bingoCards = new HashMap<>();
-
+    public HashMap<PlayerRef, List<List<BingoSlot>>> bingoCards = new HashMap<>();
+    public static EquipmentSlot slotToEquipmentSlot(int index) {
+        return switch (index) {
+            case 98 -> EquipmentSlot.MAINHAND;
+            case 99 -> EquipmentSlot.OFFHAND;
+            case 100 -> EquipmentSlot.FEET;
+            case 101 -> EquipmentSlot.LEGS;
+            case 102 -> EquipmentSlot.CHEST;
+            case 103 -> EquipmentSlot.HEAD;
+            default -> null;
+        };
+    }
     public BingoActive(GameSpace gameSpace, GameActivity activity, BingoConfig config, ServerWorld world, BlockPos spawnPos, Optional<TeamSelectionLobby> teamSelection, Optional<TeamManager> teamManager) {
         this.gameSpace = gameSpace;
         this.activity = activity;
@@ -92,7 +105,7 @@ public class BingoActive {
         BingoActive.rules(activity);
         teamSelection.ifPresent(action -> {
             action.allocate(gameSpace.getPlayers().participants(), (key, plr) -> {
-                playerTeams.put(plr, key);
+                playerTeams.put(new PlayerRef(plr.getUuid()), key);
                 teamManager.get().addPlayerTo(plr, key);
             });
         });
@@ -104,13 +117,70 @@ public class BingoActive {
         activity.listen(GameActivityEvents.DESTROY, (_reason) -> {
             Bingo.activeGames.remove(this);
         });
-        activity.listen(GamePlayerEvents.ACCEPT, acceptor ->
-            acceptor.teleport(world, spawnPos.toCenterPos()).thenRunForEach(plr -> plr.changeGameMode(GameMode.SPECTATOR))
-        );
-        activity.listen(GamePlayerEvents.OFFER, JoinOffer::acceptSpectators);
+        activity.listen(GamePlayerEvents.ACCEPT, acceptor -> {
+            return acceptor.teleport((gameProfile -> {
+                if (acceptor.intent() == JoinIntent.PLAY ) {
+                    UUID id = gameProfile.getId();
+                    AtomicReference<Vec3d> playerPos = new AtomicReference<>();
+                    AtomicReference<ServerWorld> playerWorld = new AtomicReference<>();
+
+                    teamManager.ifPresent((manager) -> {
+                        PlayerRef ref = new PlayerRef(id);
+                        if (playerTeams.containsKey(ref)) {
+                            manager.addPlayerTo(ref, playerTeams.get(ref));
+                        } else {
+                            manager.addPlayerTo(ref, manager.getSmallestTeam());
+                        }
+                        if (lastPlayerPos.containsKey(ref)) {
+                            PlayerPos obj = lastPlayerPos.get(ref);
+                            playerWorld.set(obj.world());
+                            playerPos.set(obj.pos());
+                        }
+                    });
+                    if (playerPos.get() == null) {
+                        return new xyz.nucleoid.plasmid.api.util.PlayerPos(world, spawnPos.toCenterPos(), 0, 0);
+                    } else {
+                        return new xyz.nucleoid.plasmid.api.util.PlayerPos(playerWorld.get(), playerPos.get(), 0, 0);
+
+                    }
+                } else {
+                    return new xyz.nucleoid.plasmid.api.util.PlayerPos(world, spawnPos.toCenterPos(), 0, 0);
+                }
+            }));
+        });
+        activity.listen(GamePlayerEvents.OFFER, JoinOffer::accept);
         activity.listen(GamePlayerEvents.JOIN, (plr) -> {
             sidebar.addPlayer(plr);
-            plr.changeGameMode(GameMode.SPECTATOR);
+            if (gameSpace.getPlayers().participants().contains(plr)) {
+                plr.changeGameMode(GameMode.SURVIVAL);
+                PlayerRef ref = new PlayerRef(plr.getUuid());
+                if (lastPlayerPos.containsKey(ref)) {
+                    PlayerPos obj = lastPlayerPos.get(ref);
+                    PlayerInventory currentInventory = plr.getInventory();
+                    obj.inventory().forEach(currentInventory::setStack);
+                    for (int i = 98; i <= 103; i++) {
+                        ItemStack stack = obj.inventory().get(i);
+                        plr.equipStack(slotToEquipmentSlot(i), stack);
+                    }
+                }
+
+                generateCardForPlayer(plr);
+            } else {
+                plr.changeGameMode(GameMode.SPECTATOR);
+            }
+        });
+        activity.listen(GamePlayerEvents.LEAVE, (plr) -> {
+            PlayerInventory playerInventory = plr.getInventory();
+            HashMap<Integer, ItemStack> inventory = new HashMap<>();
+            // inventory slots
+            for (int i = 0; i <= 35; i++) {
+                inventory.put(i, playerInventory.getStack(i));
+            }
+            // armor slots
+            for (int i = 98; i <= 103; i++) {
+                inventory.put(i, plr.getEquippedStack(slotToEquipmentSlot(i)));
+            }
+            lastPlayerPos.put(new PlayerRef(plr.getUuid()), new PlayerPos(plr.getPos(), plr.getWorld(), plr, inventory));
         });
         activity.listen(GameActivityEvents.TICK, this::onTick);
         activity.listen(PlayerDeathEvent.EVENT, this::onDeath);
@@ -140,7 +210,7 @@ public class BingoActive {
         activity.listen(EndPortalOpenEvent.EVENT, (_context, _result) -> config.hasEnd() ? EventResult.ALLOW : EventResult.DENY);
         sidebar.setTitle(GameConfig.shortName(activity.getGameSpace().getMetadata().sourceConfig()).copy().formatted(Formatting.GOLD));
         updateSidebar();
-        List<List<BingoSlot>> universalCard;
+
         if (!config.separate()) {
             universalCard = generateBingoCard();
         } else {
@@ -149,28 +219,7 @@ public class BingoActive {
 
         gameSpace.getPlayers().participants().forEach(plr -> {
             plr.changeGameMode(GameMode.SURVIVAL);
-            if (!config.separate()) {
-                List<List<BingoSlot>> card = new ArrayList<>();
-                if (playerTeams.containsKey(plr)) {
-                    GameTeamKey key = playerTeams.get(plr);
-                    if (teamBingoCards.containsKey(key)) {
-                        card = teamBingoCards.get(key);
-                    } else {
-                        deepCopyCard(universalCard, card);
-                        teamBingoCards.put(key, card);
-                    }
-                } else {
-                    deepCopyCard(universalCard, card);
-                }
-                bingoCards.put(plr, card);
-            } else {
-                if (playerTeams.containsKey(plr)) {
-                    GameTeamKey key = playerTeams.get(plr);
-                    bingoCards.put(plr, teamBingoCards.computeIfAbsent(key, (_key) -> generateBingoCard()));
-                } else {
-                    bingoCards.put(plr, generateBingoCard());
-                }
-            }
+            generateCardForPlayer(plr);
             plr.unlockRecipes(world.getRecipeManager().values());
             MinecraftServer server = world.getServer();
             server.getCommandManager().sendCommandTree(plr);
@@ -215,6 +264,34 @@ public class BingoActive {
         }
     }
 
+    private void generateCardForPlayer(ServerPlayerEntity plr) {
+        PlayerRef ref = new PlayerRef(plr.getUuid());
+        if (bingoCards.containsKey(ref)) {
+            return;
+        }
+        if (!config.separate()) {
+            List<List<BingoSlot>> card = new ArrayList<>();
+            if (playerTeams.containsKey(ref)) {
+                GameTeamKey key = playerTeams.get(ref);
+                if (teamBingoCards.containsKey(key)) {
+                    card = teamBingoCards.get(key);
+                } else {
+                    deepCopyCard(universalCard, card);
+                    teamBingoCards.put(key, card);
+                }
+            } else {
+                deepCopyCard(universalCard, card);
+            }
+            bingoCards.put(ref, card);
+        } else {
+            if (playerTeams.containsKey(ref)) {
+                GameTeamKey key = playerTeams.get(ref);
+                bingoCards.put(ref, teamBingoCards.computeIfAbsent(key, (_key) -> generateBingoCard()));
+            } else {
+                bingoCards.put(ref, generateBingoCard());
+            }
+        }
+    }
     private void updateSidebar() {
         sidebar.set(content -> {
             content.add(ScreenTexts.EMPTY);
@@ -236,7 +313,7 @@ public class BingoActive {
         });
     }
     private boolean checkForWin(ServerPlayerEntity plr) {
-        List<List<BingoSlot>> bingoCard = bingoCards.get(plr);
+        List<List<BingoSlot>> bingoCard = bingoCards.get(new PlayerRef(plr.getUuid()));
         if (config.lockout()) {
             int claimedSlotCount = 0;
             for (List<BingoSlot> col : bingoCard) {
@@ -320,7 +397,7 @@ public class BingoActive {
                 config.genericArmorTrimDrops() && item instanceof SmithingTemplateItem && otherItem instanceof SmithingTemplateItem);
     }
     private void checkForScore(ServerPlayerEntity plr, ItemStack stack) {
-        List<List<BingoSlot>> bingoCard = bingoCards.get(plr);
+        List<List<BingoSlot>> bingoCard = bingoCards.get(new PlayerRef(plr.getUuid()));
         int colIndex = 99;
         int rowIndex = 99;
         for (List<BingoSlot> col : bingoCard) {
@@ -338,11 +415,11 @@ public class BingoActive {
             bingoCard.get(colIndex).set(rowIndex, new BingoSlot(stack.getItem(), true, config.lockout()));
             plrWorld.spawnParticles(ParticleTypes.TOTEM_OF_UNDYING, plr.getX(), plr.getY(), plr.getZ(), 32, 1, 1, 1, 1);
             plrWorld.playSound(null, plr.getBlockPos(), SoundEvents.ENTITY_FIREWORK_ROCKET_BLAST, SoundCategory.PLAYERS, 1, 1);
-            String plrName;
+            Text plrName;
             if (plr.getDisplayName() != null) {
-                plrName = plr.getDisplayName().getString();
+                plrName = plr.getDisplayName();
             } else {
-                plrName = plr.getName().getString();
+                plrName = plr.getName();
             }
 
             if (config.lockout()) {
@@ -496,15 +573,16 @@ public class BingoActive {
     }
     private void End(ServerPlayerEntity winner) {
         int claimedSlotCount = 0;
-        for (List<BingoSlot> col : bingoCards.get(winner)) {
+        PlayerRef ref = new PlayerRef(winner.getUuid());
+        for (List<BingoSlot> col : bingoCards.get(ref)) {
             for (BingoSlot slot : col) {
                 if (slot.marked()) {
                     claimedSlotCount++;
                 }
             }
         }
-        if (playerTeams.containsKey(winner)) {
-            GameTeamKey winningTeam = playerTeams.get(winner);
+        if (playerTeams.containsKey(ref)) {
+            GameTeamKey winningTeam = playerTeams.get(ref);
             String teamPlayers = "";
             for (PlayerRef plrRef : teamManager.get().allPlayersIn(winningTeam)) {
                 String plrName;
@@ -535,5 +613,11 @@ public class BingoActive {
 
         gameWon = true;
         gameWinTime = gameSpace.getTime();
+    }
+
+    record PlayerPos(Vec3d pos, ServerWorld world, PlayerRef plr, HashMap<Integer, ItemStack> inventory) {
+        public PlayerPos(Vec3d pos, ServerWorld world, ServerPlayerEntity plr, HashMap<Integer, ItemStack> inventory) {
+            this(pos, world, new PlayerRef(plr.getUuid()), inventory);
+        }
     }
 }

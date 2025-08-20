@@ -18,6 +18,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import xyz.nucleoid.plasmid.api.game.GameSpace;
 import xyz.nucleoid.plasmid.api.game.GameSpaceManager;
+import xyz.nucleoid.plasmid.api.util.PlayerRef;
 
 import java.util.List;
 
@@ -41,7 +42,7 @@ public class BingoCardCommand {
         if (gameSpace == null) {
             return false;
         }
-        List<List<BingoSlot>> bingoCard = Bingo.getGame(gameSpace).bingoCards.get(plr);
+        List<List<BingoSlot>> bingoCard = Bingo.getGame(gameSpace).bingoCards.get(new PlayerRef(plr.getUuid()));
         if (bingoCard == null) {
             return false;
         }
