@@ -8,9 +8,12 @@ import net.minecraft.SharedConstants;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.mob.Angerable;
+import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.*;
 import net.minecraft.particle.ParticleTypes;
+import net.minecraft.predicate.entity.EntityPredicates;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.entry.RegistryEntryList;
@@ -26,6 +29,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.GameMode;
@@ -531,6 +535,13 @@ public class BingoActive {
         playersRespawning.put(plr, gameSpace.getTime() + SharedConstants.TICKS_PER_SECOND * 5);
         plr.getInventory().dropAll();
         plr.changeGameMode(GameMode.SPECTATOR);
+        // forgive mobs on death
+        Box box = new Box(plr.getBlockPos()).expand(32.0, 10.0, 32.0);
+        plr.getWorld()
+                .getEntitiesByClass(MobEntity.class, box, EntityPredicates.EXCEPT_SPECTATOR)
+                .stream()
+                .filter(entity -> entity instanceof Angerable)
+                .forEach(entity -> ((Angerable)entity).forgive(plr.getWorld(), plr));
         return EventResult.DENY;
     }
 
