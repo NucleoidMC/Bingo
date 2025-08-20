@@ -181,6 +181,7 @@ public class BingoActive {
                 inventory.put(i, plr.getEquippedStack(slotToEquipmentSlot(i)));
             }
             lastPlayerPos.put(new PlayerRef(plr.getUuid()), new PlayerPos(plr.getPos(), plr.getWorld(), plr, inventory));
+            playersRespawning.remove(plr);
         });
         activity.listen(GameActivityEvents.TICK, this::onTick);
         activity.listen(PlayerDeathEvent.EVENT, this::onDeath);
@@ -538,6 +539,7 @@ public class BingoActive {
         playersRespawning.forEach((plr, respawnTime) -> {
             long timeLeft = respawnTime - time;
             if (timeLeft <= 0) {
+
                 plr.changeGameMode(GameMode.SURVIVAL);
                 plr.getHungerManager().setFoodLevel(20);
                 plr.getHungerManager().setSaturationLevel(20);
