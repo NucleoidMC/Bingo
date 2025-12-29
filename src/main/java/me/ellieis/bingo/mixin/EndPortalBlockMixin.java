@@ -11,6 +11,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.TeleportTarget;
 import net.minecraft.world.World;
+import net.minecraft.world.dimension.DimensionType;
 import net.minecraft.world.dimension.DimensionTypes;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
@@ -31,10 +32,10 @@ public class EndPortalBlockMixin {
             ServerWorld overworld = null;
             ServerWorld end = null;
             for (ServerWorld gameWorld : gameSpace.getWorlds()) {
-                Identifier dimension = gameWorld.getDimension().effects();
-                if (dimension.equals(DimensionTypes.OVERWORLD_ID)) {
+                RegistryKey<DimensionType> dimension = gameWorld.getDimensionEntry().getKey().get();
+                if (dimension.equals(DimensionTypes.OVERWORLD)) {
                     overworld = gameWorld;
-                } else if (dimension.equals(DimensionTypes.THE_END_ID)) {
+                } else if (dimension.equals(DimensionTypes.THE_END)) {
                     end = gameWorld;
                 }
             }
@@ -42,21 +43,15 @@ public class EndPortalBlockMixin {
             if (overworld == null || end == null) {
                 return original;
             }
-
-            if (world.getDimension().effects().equals(DimensionTypes.OVERWORLD_ID)) {
+            RegistryKey<DimensionType> dimension = world.getDimensionEntry().getKey().get();
+            if (dimension.equals(DimensionTypes.OVERWORLD)) {
                 return end.getRegistryKey();
-            } else if (world.getDimension().effects().equals(DimensionTypes.THE_END_ID)) {
+            } else if (dimension.equals(DimensionTypes.THE_END)) {
                 return overworld.getRegistryKey();
             } else {
                 return original;
             }
         }
         return original;
-    }
-
-    @Inject(method = "createTeleportTarget",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/server/world/ServerWorld;getSpawnPos()Lnet/minecraft/util/math/BlockPos;", shift = At.Shift.BY, by = -7))
-    private void bingo$isEndCheck(ServerWorld world, Entity entity, BlockPos pos, CallbackInfoReturnable<TeleportTarget> cir, @Local(ordinal = 1) @NotNull ServerWorld otherServerWorld, @Local @NotNull LocalBooleanRef isEnd) {
-        isEnd.set(otherServerWorld.getDimension().effects().equals(DimensionTypes.THE_END_ID));
     }
 }

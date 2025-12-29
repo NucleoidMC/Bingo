@@ -4,9 +4,11 @@ import com.llamalad7.mixinextras.sugar.Local;
 import me.ellieis.bingo.Bingo;
 import net.minecraft.block.NetherPortalBlock;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
+import net.minecraft.world.dimension.DimensionType;
 import net.minecraft.world.dimension.DimensionTypes;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,10 +26,11 @@ public class NetherPortalBlockMixin {
             ServerWorld overworld = null;
             ServerWorld nether = null;
             for (ServerWorld gameWorld : gameSpace.getWorlds()) {
-                Identifier dimension = gameWorld.getDimension().effects();
-                if (dimension.equals(DimensionTypes.OVERWORLD_ID)) {
+
+                RegistryKey<DimensionType> dimension = gameWorld.getDimensionEntry().getKey().get();
+                if (dimension.equals(DimensionTypes.OVERWORLD)) {
                     overworld = gameWorld;
-                } else if (dimension.equals(DimensionTypes.THE_NETHER_ID)) {
+                } else if (dimension.equals(DimensionTypes.THE_NETHER)) {
                     nether = gameWorld;
                 }
             }
@@ -35,10 +38,10 @@ public class NetherPortalBlockMixin {
             if (overworld == null || nether == null) {
                 return original;
             }
-
-            if (world.getDimension().effects().equals(DimensionTypes.OVERWORLD_ID)) {
+            RegistryKey<DimensionType> dimension = world.getDimensionEntry().getKey().get();
+            if (dimension.equals(DimensionTypes.OVERWORLD)) {
                 return nether.getRegistryKey();
-            } else if (world.getDimension().effects().equals(DimensionTypes.THE_NETHER_ID)) {
+            } else if (dimension.equals(DimensionTypes.THE_NETHER)) {
                 return overworld.getRegistryKey();
             } else {
                 return original;
@@ -55,6 +58,6 @@ public class NetherPortalBlockMixin {
             return original;
         }
 
-        return serverWorld.getDimension().effects().equals(DimensionTypes.THE_NETHER_ID);
+        return serverWorld.getDimensionEntry().getKey().get().equals(DimensionTypes.THE_NETHER);
     }
 }

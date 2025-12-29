@@ -3,7 +3,6 @@ package me.ellieis.bingo.game.phases;
 import me.ellieis.bingo.game.config.BingoConfig;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
 import net.minecraft.registry.RegistryKey;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ChunkTicket;
 import net.minecraft.server.world.ChunkTicketType;
 import net.minecraft.server.world.ServerWorld;
@@ -14,13 +13,11 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.GameMode;
-import net.minecraft.world.GameRules;
+import net.minecraft.world.rule.GameRules;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.dimension.DimensionOptions;
 import net.minecraft.world.dimension.DimensionOptionsRegistryHolder;
-import net.minecraft.world.dimension.DimensionTypes;
 import net.minecraft.world.gen.WorldPreset;
-import net.minecraft.world.gen.WorldPresets;
 import xyz.nucleoid.fantasy.RuntimeWorldConfig;
 import xyz.nucleoid.fantasy.util.VoidChunkGenerator;
 import xyz.nucleoid.plasmid.api.game.*;
@@ -78,11 +75,12 @@ public class BingoLoading {
 
             ServerWorld starterWorld;
             Identifier starterDimension = config.starterDimension();
-            if (overworld != null && overworld.getDimension().effects().equals(starterDimension)) {
+
+            if (overworld != null && overworld.getDimensionEntry().getKey().get().getValue().equals(starterDimension)) {
                 starterWorld = overworld;
-            } else if (nether != null && nether.getDimension().effects().equals(starterDimension)) {
+            } else if (nether != null && nether.getDimensionEntry().getKey().get().getValue().equals(starterDimension)) {
                 starterWorld = nether;
-            } else if (end != null && end.getDimension().effects().equals(starterDimension)) {
+            } else if (end != null && end.getDimensionEntry().getKey().get().getValue().equals(starterDimension)) {
                 starterWorld = end;
             } else {
                 throw new GameOpenException(Text.translatable("bingo.no_available_dimensions"));
@@ -98,7 +96,7 @@ public class BingoLoading {
                 )
             );
             activity.listen(GameActivityEvents.CREATE, () -> {
-                starterWorld.getChunkManager().addTicket(new ChunkTicket(ChunkTicketType.START, 2), new ChunkPos(spawnPos));
+                starterWorld.getChunkManager().addTicket(new ChunkTicket(ChunkTicketType.FORCED, 2), new ChunkPos(spawnPos));
             });
             activity.listen(GameActivityEvents.REQUEST_START, () -> GameResult.error(Text.translatable("bingo.generating")));
             activity.listen(GameActivityEvents.TICK, () -> {

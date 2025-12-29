@@ -38,7 +38,7 @@ public class BingoCardCommand {
         }
 
         // items
-        GameSpace gameSpace = GameSpaceManager.get().byWorld(plr.getWorld());
+        GameSpace gameSpace = GameSpaceManager.get().byWorld(plr.getEntityWorld());
         if (gameSpace == null) {
             return false;
         }
@@ -88,6 +88,9 @@ public class BingoCardCommand {
 
 
     private static boolean isInGame(ServerCommandSource source) {
+        if (!source.isExecutedByPlayer()) {
+            return false;
+        }
         GameSpace gameSpace = GameSpaceManager.get().byWorld(source.getWorld());
         return gameSpace != null && Bingo.isGameWorld(gameSpace);
     }

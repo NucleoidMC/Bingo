@@ -2,8 +2,9 @@ package me.ellieis.bingo.mixin;
 
 import me.ellieis.bingo.Bingo;
 import net.minecraft.block.AbstractFireBlock;
-import net.minecraft.util.Identifier;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.world.World;
+import net.minecraft.world.dimension.DimensionType;
 import net.minecraft.world.dimension.DimensionTypes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -18,8 +19,8 @@ public class AbstractFireBlockMixin {
     private static void bingo$allowNetherPortalsInBingo(World world, CallbackInfoReturnable<Boolean> cir) {
         GameSpace gameSpace = GameSpaceManager.get().byWorld (world);
         if (gameSpace != null && Bingo.isGameWorld(gameSpace)) {
-            Identifier dimension = world.getDimension().effects();
-            cir.setReturnValue(dimension.equals(DimensionTypes.THE_NETHER_ID) || dimension.equals(DimensionTypes.OVERWORLD_ID));
+            RegistryKey<DimensionType> dimension = world.getDimensionEntry().getKey().get();;
+            cir.setReturnValue(dimension.equals(DimensionTypes.THE_NETHER) || dimension.equals(DimensionTypes.OVERWORLD));
         }
     }
 }

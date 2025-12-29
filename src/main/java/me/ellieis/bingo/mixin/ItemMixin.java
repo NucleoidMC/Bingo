@@ -20,7 +20,7 @@ import xyz.nucleoid.stimuli.event.EventResult;
 public abstract class ItemMixin implements ToggleableFeature, ItemConvertible, FabricItem {
     @Inject(method = "onCraftByPlayer", at = @At("HEAD"), cancellable = true)
     public void onCraft(ItemStack stack, PlayerEntity plr, CallbackInfo ci) {
-        if (plr.getWorld().isClient()) {
+        if (plr.getEntityWorld().isClient()) {
             return;
         }
         try (var invokers = Stimuli.select().forEntity(plr)) {

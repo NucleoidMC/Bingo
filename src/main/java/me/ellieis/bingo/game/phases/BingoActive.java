@@ -1,5 +1,9 @@
 package me.ellieis.bingo.game.phases;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.DynamicOps;
+import com.mojang.serialization.codecs.PrimitiveCodec;
 import me.ellieis.bingo.Bingo;
 import me.ellieis.bingo.BingoCardCommand;
 import me.ellieis.bingo.ItemCraftEvent;
@@ -30,9 +34,11 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.GlobalPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.GameMode;
+import net.minecraft.world.WorldProperties;
 import xyz.nucleoid.plasmid.api.game.GameActivity;
 import xyz.nucleoid.plasmid.api.game.GameCloseReason;
 import xyz.nucleoid.plasmid.api.game.GameSpace;
@@ -104,7 +110,7 @@ public class BingoActive {
         this.startTime = world.getTime();
         this.timeoutTime = config.timeLimit() + this.startTime;
         this.playerTeams = new HashMap<>();
-        world.setSpawnPos(spawnPos, 0);
+        world.setSpawnPoint(WorldProperties.SpawnPoint.create(world.getRegistryKey(), spawnPos, 0, 0));
         Bingo.activeGames.add(this);
         BingoActive.rules(activity);
         teamSelection.ifPresent(action -> {
@@ -124,7 +130,7 @@ public class BingoActive {
         activity.listen(GamePlayerEvents.ACCEPT, acceptor -> {
             return acceptor.teleport((gameProfile -> {
                 if (acceptor.intent() == JoinIntent.PLAY ) {
-                    UUID id = gameProfile.getId();
+                    UUID id = gameProfile.id();
                     AtomicReference<Vec3d> playerPos = new AtomicReference<>();
                     AtomicReference<ServerWorld> playerWorld = new AtomicReference<>();
 
@@ -184,7 +190,7 @@ public class BingoActive {
             for (int i = 98; i <= 103; i++) {
                 inventory.put(i, plr.getEquippedStack(slotToEquipmentSlot(i)));
             }
-            lastPlayerPos.put(new PlayerRef(plr.getUuid()), new PlayerPos(plr.getPos(), plr.getWorld(), plr, inventory));
+            lastPlayerPos.put(new PlayerRef(plr.getUuid()), new PlayerPos(plr.getEntityPos(), plr.getEntityWorld(), plr, inventory));
             playersRespawning.remove(plr);
         });
         activity.listen(GameActivityEvents.TICK, this::onTick);
@@ -415,7 +421,7 @@ public class BingoActive {
             }
         }
         if (colIndex != 99 ) {
-            ServerWorld plrWorld = plr.getWorld();
+            ServerWorld plrWorld = plr.getEntityWorld();
             // there doesn't need to be specific code for updating team member's bingo cards as they all share the same underlying references
             bingoCard.get(colIndex).set(rowIndex, new BingoSlot(stack.getItem(), true, config.lockout()));
             plrWorld.spawnParticles(ParticleTypes.TOTEM_OF_UNDYING, plr.getX(), plr.getY(), plr.getZ(), 32, 1, 1, 1, 1);
@@ -537,11 +543,11 @@ public class BingoActive {
         plr.changeGameMode(GameMode.SPECTATOR);
         // forgive mobs on death
         Box box = new Box(plr.getBlockPos()).expand(32.0, 10.0, 32.0);
-        plr.getWorld()
+        plr.getEntityWorld()
                 .getEntitiesByClass(MobEntity.class, box, EntityPredicates.EXCEPT_SPECTATOR)
                 .stream()
                 .filter(entity -> entity instanceof Angerable)
-                .forEach(entity -> ((Angerable)entity).forgive(plr.getWorld(), plr));
+                .forEach(entity -> ((Angerable)entity).forgive(plr.getEntityWorld(), plr));
         return EventResult.DENY;
     }
 
