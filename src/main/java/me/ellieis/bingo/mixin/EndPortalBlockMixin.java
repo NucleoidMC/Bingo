@@ -54,4 +54,12 @@ public class EndPortalBlockMixin {
         }
         return original;
     }
+
+    @Inject(method = "createTeleportTarget",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/util/math/BlockPos;toBottomCenterPos()Lnet/minecraft/util/math/Vec3d;"))
+    private void bingo$isEndCheck(ServerWorld world, Entity entity, BlockPos pos, CallbackInfoReturnable<TeleportTarget> cir, @Local(ordinal = 1) @NotNull ServerWorld otherServerWorld, @Local(ordinal = 0) LocalBooleanRef isEnd) {
+        // TODO: Probably a good idea to find a better way to detect what dimension the other world is,
+        //  instead of checking what skybox is used.
+        isEnd.set(otherServerWorld.getDimension().skybox().equals(DimensionType.Skybox.END));
+    }
 }
