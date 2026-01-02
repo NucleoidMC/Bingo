@@ -54,4 +54,11 @@ public class EndPortalBlockMixin {
         }
         return original;
     }
+
+    @Inject(method = "createTeleportTarget",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/util/math/BlockPos;toBottomCenterPos()Lnet/minecraft/util/math/Vec3d;"))
+    private void bingo$isEndCheck(ServerWorld world, Entity entity, BlockPos pos, CallbackInfoReturnable<TeleportTarget> cir, @Local(ordinal = 1) @NotNull ServerWorld otherServerWorld, @Local(ordinal = 0) LocalBooleanRef isEnd) {
+        RegistryKey<DimensionType> otherDimension = otherServerWorld.getDimensionEntry().getKey().get();
+        !isEnd.set(otherDimension.equals(DimensionTypes.THE_END));
+    }
 }
