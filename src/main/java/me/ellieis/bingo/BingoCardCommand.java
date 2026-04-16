@@ -8,14 +8,14 @@ import eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils;
 import eu.pb4.sgui.api.gui.SimpleGui;
 import me.ellieis.bingo.game.phases.BingoSlot;
 import me.ellieis.bingo.resourcepack.GuiTextures;
-import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.datafixer.fix.ItemCustomNameToComponentFix;
-import net.minecraft.item.Items;
-import net.minecraft.screen.ScreenHandlerType;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.util.datafix.fixes.ItemCustomNameToComponentFix;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
 import xyz.nucleoid.plasmid.api.game.GameSpace;
 import xyz.nucleoid.plasmid.api.game.GameSpaceManager;
 import xyz.nucleoid.plasmid.api.util.PlayerRef;
@@ -26,10 +26,10 @@ import static me.ellieis.bingo.resourcepack.GuiTextures.CLAIMED_SLOT;
 import static me.ellieis.bingo.resourcepack.GuiTextures.LOCKED_SLOT;
 
 public class BingoCardCommand {
-    public static boolean showGui(ServerPlayerEntity observer, ServerPlayerEntity plr) {
-        var type = ScreenHandlerType.GENERIC_9X6;
+    public static boolean showGui(ServerPlayer observer, ServerPlayer plr) {
+        var type = MenuType.GENERIC_9x6;
         SimpleGui gui = new SimpleGui(type, observer, false);
-        Text title = Text.translatable(observer.equals(plr) ? "bingo.gui.card.title.self" : "bingo.gui.card.title.others", plr.getName());
+        Component title = Component.translatable(observer.equals(plr) ? "bingo.gui.card.title.self" : "bingo.gui.card.title.others", plr.getName());
         boolean hasMainPack = PolymerResourcePackUtils.hasMainPack(observer);
         if (hasMainPack) {
             gui.setTitle(GuiTextures.BINGO_CARD.apply(title));
@@ -38,11 +38,11 @@ public class BingoCardCommand {
         }
 
         // items
-        GameSpace gameSpace = GameSpaceManager.get().byWorld(plr.getEntityWorld());
+        GameSpace gameSpace = GameSpaceManager.get().byLevel(plr.level());
         if (gameSpace == null) {
             return false;
         }
-        List<List<BingoSlot>> bingoCard = Bingo.getGame(gameSpace).bingoCards.get(new PlayerRef(plr.getUuid()));
+        List<List<BingoSlot>> bingoCard = Bingo.getGame(gameSpace).bingoCards.get(new PlayerRef(plr.getUUID()));
         if (bingoCard == null) {
             return false;
         }
@@ -53,19 +53,19 @@ public class BingoCardCommand {
                 BingoSlot slot = col.get(rowIndex);
                 if (slot.marked()) {
                     if (hasMainPack) {
-                        gui.setSlot(index, CLAIMED_SLOT.get().setName(slot.item().getName()));
+                        gui.setSlot(index, CLAIMED_SLOT.get().setName(slot.item().getDefaultInstance().getItemName()));
                     } else {
-                        gui.setSlot(index, Items.LIME_STAINED_GLASS_PANE.getDefaultStack());
+                        gui.setSlot(index, Items.LIME_STAINED_GLASS_PANE.getDefaultInstance());
                     }
                 } else if (slot.locked()) {
                     if (hasMainPack) {
-                        gui.setSlot(index, LOCKED_SLOT.get().setName(slot.item().getName()));
+                        gui.setSlot(index, LOCKED_SLOT.get().setName(slot.item().getDefaultInstance().getItemName()));
                     } else {
-                        gui.setSlot(index, Items.BARRIER.getDefaultStack());
+                        gui.setSlot(index, Items.BARRIER.getDefaultInstance());
                     }
                 }
                 else {
-                    gui.setSlot(index, slot.item().getDefaultStack());
+                    gui.setSlot(index, slot.item().getDefaultInstance());
                 }
             }
         }
@@ -74,11 +74,11 @@ public class BingoCardCommand {
         return true;
     }
 
-    public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(
-                CommandManager.literal("bingocard")
+                Commands.literal("bingocard")
                         .requires(BingoCardCommand::isInGame)
-                        .then(CommandManager.argument("player", EntityArgumentType.player())
+                        .then(Commands.argument("player", EntityArgument.player())
                                 .executes(BingoCardCommand::commandArg)
                         )
                         .executes(BingoCardCommand::command)
@@ -87,25 +87,25 @@ public class BingoCardCommand {
 
 
 
-    private static boolean isInGame(ServerCommandSource source) {
-        if (!source.isExecutedByPlayer()) {
+    private static boolean isInGame(CommandSourceStack source) {
+        if (!source.isPlayer()) {
             return false;
         }
-        GameSpace gameSpace = GameSpaceManager.get().byWorld(source.getWorld());
-        return gameSpace != null && Bingo.isGameWorld(gameSpace);
+        GameSpace gameSpace = GameSpaceManager.get().byLevel(source.getLevel());
+        return gameSpace != null && Bingo.isGameLevel(gameSpace);
     }
 
-    private static int command(CommandContext<ServerCommandSource> context) {
-        ServerPlayerEntity plr = context.getSource().getPlayer();
+    private static int command(CommandContext<CommandSourceStack> context) {
+        ServerPlayer plr = context.getSource().getPlayer();
         if (plr != null) {
             showGui(plr, plr);
         }
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int commandArg(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        ServerPlayerEntity plr = context.getSource().getPlayer();
-        ServerPlayerEntity otherPlr = EntityArgumentType.getPlayer(context, "player");
+    private static int commandArg(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer plr = context.getSource().getPlayer();
+        ServerPlayer otherPlr = EntityArgument.getPlayer(context, "player");
         if (plr != null) {
             showGui(plr, otherPlr);
         }

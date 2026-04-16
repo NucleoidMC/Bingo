@@ -7,7 +7,7 @@
     "defaultRequire": 1
   },
   "mixins": [
-    "AbstractFireBlockMixin",
+    "BaseFireBlockMixin",
     "EndPortalBlockMixin",
     "ItemMixin",
     "NetherPortalBlockMixin"

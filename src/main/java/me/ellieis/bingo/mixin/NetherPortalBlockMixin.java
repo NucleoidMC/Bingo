@@ -2,14 +2,14 @@ package me.ellieis.bingo.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
 import me.ellieis.bingo.Bingo;
-import net.minecraft.block.NetherPortalBlock;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Identifier;
-import net.minecraft.world.World;
-import net.minecraft.world.dimension.DimensionType;
-import net.minecraft.world.dimension.DimensionTypes;
+import net.minecraft.world.level.block.NetherPortalBlock;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.Holder;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.dimension.DimensionType;
+import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -19,30 +19,30 @@ import xyz.nucleoid.plasmid.api.game.GameSpaceManager;
 
 @Mixin(NetherPortalBlock.class)
 public class NetherPortalBlockMixin {
-    @ModifyArg(method="createTeleportTarget", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;getWorld(Lnet/minecraft/registry/RegistryKey;)Lnet/minecraft/server/world/ServerWorld;"), index = 0)
-    private RegistryKey<World> bingo$allowNetherPortalsInGameWorld(RegistryKey<World> original, @Local(argsOnly = true) @NotNull ServerWorld world) {
-        GameSpace gameSpace = GameSpaceManager.get().byWorld(world);
-        if (gameSpace != null && Bingo.isGameWorld(gameSpace)) {
-            ServerWorld overworld = null;
-            ServerWorld nether = null;
-            for (ServerWorld gameWorld : gameSpace.getWorlds()) {
+    @ModifyArg(method= "getPortalDestination", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;getLevel(Lnet/minecraft/resources/ResourceKey;)Lnet/minecraft/server/level/ServerLevel;"), index = 0)
+    private ResourceKey<Level> bingo$allowNetherPortalsInGameWorld(ResourceKey<Level> original, @Local(argsOnly = true) @NotNull ServerLevel world) {
+        GameSpace gameSpace = GameSpaceManager.get().byLevel(world);
+        if (gameSpace != null && Bingo.isGameLevel(gameSpace)) {
+            ServerLevel overworld = null;
+            ServerLevel nether = null;
+            for (ServerLevel gameLevel : gameSpace.getLevels()) {
 
-                RegistryKey<DimensionType> dimension = gameWorld.getDimensionEntry().getKey().get();
-                if (dimension.equals(DimensionTypes.OVERWORLD)) {
-                    overworld = gameWorld;
-                } else if (dimension.equals(DimensionTypes.THE_NETHER)) {
-                    nether = gameWorld;
+                ResourceKey<DimensionType> dimension = gameLevel.dimensionTypeRegistration().unwrapKey().get();
+                if (dimension.equals(BuiltinDimensionTypes.OVERWORLD)) {
+                    overworld = gameLevel;
+                } else if (dimension.equals(BuiltinDimensionTypes.NETHER)) {
+                    nether = gameLevel;
                 }
             }
 
             if (overworld == null || nether == null) {
                 return original;
             }
-            RegistryKey<DimensionType> dimension = world.getDimensionEntry().getKey().get();
-            if (dimension.equals(DimensionTypes.OVERWORLD)) {
-                return nether.getRegistryKey();
-            } else if (dimension.equals(DimensionTypes.THE_NETHER)) {
-                return overworld.getRegistryKey();
+            ResourceKey<DimensionType> dimension = world.dimensionTypeRegistration().unwrapKey().get();
+            if (dimension.equals(BuiltinDimensionTypes.OVERWORLD)) {
+                return nether.dimension();
+            } else if (dimension.equals(BuiltinDimensionTypes.NETHER)) {
+                return overworld.dimension();
             } else {
                 return original;
             }
@@ -50,14 +50,14 @@ public class NetherPortalBlockMixin {
         return original;
     }
 
-    @ModifyArg(method = "createTeleportTarget", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/block/NetherPortalBlock;getOrCreateExitPortalTarget(Lnet/minecraft/server/world/ServerWorld;Lnet/minecraft/entity/Entity;Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/util/math/BlockPos;ZLnet/minecraft/world/border/WorldBorder;)Lnet/minecraft/world/TeleportTarget;"))
-    private boolean bingo$allowNetherPortalCreationInGameWorlds(boolean original, @Local(argsOnly = true) @NotNull ServerWorld serverWorld) {
-        var gameSpace = GameSpaceManager.get().byWorld(serverWorld);
-        if (gameSpace == null || !Bingo.isGameWorld(gameSpace)) {
+    @ModifyArg(method = "getPortalDestination", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/world/level/block/NetherPortalBlock;getExitPortal(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/Entity;Lnet/minecraft/core/BlockPos;Lnet/minecraft/core/BlockPos;ZLnet/minecraft/world/level/border/WorldBorder;)Lnet/minecraft/world/level/portal/TeleportTransition;"))
+    private boolean bingo$allowNetherPortalCreationInGameWorlds(boolean original, @Local(argsOnly = true) @NotNull ServerLevel serverWorld) {
+        var gameSpace = GameSpaceManager.get().byLevel(serverWorld);
+        if (gameSpace == null || !Bingo.isGameLevel(gameSpace)) {
             return original;
         }
 
-        return serverWorld.getDimensionEntry().getKey().get().equals(DimensionTypes.THE_NETHER);
+        return serverWorld.dimensionTypeRegistration().unwrapKey().get().equals(BuiltinDimensionTypes.NETHER);
     }
 }

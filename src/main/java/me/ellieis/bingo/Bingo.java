@@ -7,11 +7,11 @@ import me.ellieis.bingo.game.phases.BingoLoading;
 import me.ellieis.bingo.resourcepack.GuiTextures;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.Identifier;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import xyz.nucleoid.plasmid.api.game.GameSpace;
-import xyz.nucleoid.plasmid.api.game.GameType;
+import xyz.nucleoid.plasmid.api.game.GameTypes;
 
 import java.util.ArrayList;
 
@@ -19,7 +19,7 @@ public class Bingo implements ModInitializer {
     public static final String MOD_ID = "bingo";
     public static final ArrayList<BingoActive> activeGames = new ArrayList<>();
     public static final Logger LOGGER = LogManager.getLogger(Bingo.class);
-    public static boolean isGameWorld(GameSpace gameSpace) {
+    public static boolean isGameLevel(GameSpace gameSpace) {
         return getGame(gameSpace) != null;
     }
 
@@ -36,12 +36,12 @@ public class Bingo implements ModInitializer {
     }
     @Override
     public void onInitialize() {
-        GameType.register(Bingo.identifier("bingo"), BingoConfig.CODEC, BingoLoading::Open);
+        GameTypes.register(Bingo.identifier("bingo"), BingoConfig.CODEC, BingoLoading::Open);
         CommandRegistrationCallback.EVENT.register(((commandDispatcher, commandRegistryAccess, registrationEnvironment) -> BingoCardCommand.register(commandDispatcher)));
         PolymerResourcePackUtils.addModAssets(MOD_ID);
         GuiTextures.register();
     }
     public static Identifier identifier(String value) {
-        return Identifier.of(MOD_ID, value);
+        return Identifier.fromNamespaceAndPath(MOD_ID, value);
     }
 }

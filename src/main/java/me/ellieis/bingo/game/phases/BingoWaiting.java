@@ -1,9 +1,9 @@
 package me.ellieis.bingo.game.phases;
 
 import me.ellieis.bingo.game.config.BingoConfig;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.GameMode;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.GameType;
 import xyz.nucleoid.plasmid.api.game.GameActivity;
 import xyz.nucleoid.plasmid.api.game.GameResult;
 import xyz.nucleoid.plasmid.api.game.GameSpace;
@@ -22,38 +22,38 @@ public class BingoWaiting {
     GameSpace gameSpace;
     GameActivity activity;
     BingoConfig config;
-    ServerWorld world;
+    ServerLevel level;
     BlockPos spawnPos;
     Optional<TeamSelectionLobby> teamSelection;
 
-    public BingoWaiting(GameSpace gameSpace, GameActivity activity, BingoConfig config, ServerWorld world, BlockPos spawnPos, Optional<TeamSelectionLobby> teamSelection) {
+    public BingoWaiting(GameSpace gameSpace, GameActivity activity, BingoConfig config, ServerLevel level, BlockPos spawnPos, Optional<TeamSelectionLobby> teamSelection) {
         this.gameSpace = gameSpace;
         this.activity = activity;
         this.config = config;
-        this.world = world;
+        this.level = level;
         this.spawnPos = spawnPos;
         this.teamSelection = teamSelection;
 
         gameSpace.getPlayers().forEach((plr) -> {
-            plr.teleport(world, spawnPos.getX(), spawnPos.getY(), spawnPos.getZ(), Set.of(), 0, 0, false);
-            plr.changeGameMode(GameMode.ADVENTURE);
+            System.out.println(plr.teleportTo(level, spawnPos.getX(), spawnPos.getY(), spawnPos.getZ(), Set.of(), 0, 0, false));
+            plr.setGameMode(GameType.ADVENTURE);
         });
 
         activity.listen(GameActivityEvents.REQUEST_START, () -> {
-            BingoActive.Open(gameSpace, config, world, spawnPos, teamSelection);
+            BingoActive.Open(gameSpace, config, level, spawnPos, teamSelection);
             return GameResult.ok();
         });
 
         activity.listen(PlayerDamageEvent.EVENT, (_plr, _source, _damage) -> EventResult.DENY);
         activity.listen(GamePlayerEvents.OFFER, JoinOffer::accept);
         activity.listen(GamePlayerEvents.ACCEPT, acceptor ->
-                acceptor.teleport(world, spawnPos.toCenterPos())
-                        .thenRunForEach(plr -> plr.changeGameMode(GameMode.ADVENTURE)));
+                acceptor.teleport(level, spawnPos.getCenter())
+                        .thenRunForEach(plr -> plr.setGameMode(GameType.ADVENTURE)));
 
 
         GameWaitingLobby.addTo(activity, config.playerConfig());
     }
-    public static void Open(GameSpace gameSpace, BingoConfig config, ServerWorld world, BlockPos spawnPos) {
+    public static void Open(GameSpace gameSpace, BingoConfig config, ServerLevel world, BlockPos spawnPos) {
         gameSpace.setActivity(activity ->  {
             Optional<TeamSelectionLobby> teamSelection = config.teams().map(teams -> TeamSelectionLobby.addTo(activity, teams));
             new BingoWaiting(gameSpace, activity, config, world, spawnPos, teamSelection);

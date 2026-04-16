@@ -5,16 +5,20 @@ import com.google.gson.JsonObject;
 import eu.pb4.factorytools.api.virtualentity.ItemDisplayElementUtil;
 import eu.pb4.polymer.resourcepack.api.AssetPaths;
 import eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils;
+import eu.pb4.polymer.resourcepack.extras.api.ResourcePackExtras;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import it.unimi.dsi.fastutil.chars.Char2IntMap;
 import it.unimi.dsi.fastutil.chars.Char2IntOpenHashMap;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.text.Style;
-import net.minecraft.text.StyleSpriteSource;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.component.DataComponentPatch;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.FontDescription;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -35,7 +39,7 @@ public class UiResourceCreator {
     public static final String X32_MODEL = "bingo:sgui/button_32";
     public static final String X32_RIGHT_MODEL = "bingo:sgui/button_32_right";
 
-    public static final Style STYLE = Style.EMPTY.withColor(0xFFFFFF).withFont(new StyleSpriteSource.Font(identifier("gui")));
+    public static final Style STYLE = Style.EMPTY.withColor(0xFFFFFF).withFont(new FontDescription.Resource(identifier("gui")));
     private static final String ITEM_TEMPLATE = """
             {
               "parent": "|BASE|",
@@ -76,23 +80,23 @@ public class UiResourceCreator {
 
     public static Supplier<GuiElementBuilder> icon16(String path) {
         var model = genericIconRaw(Items.ALLIUM, path, BASE_MODEL, 0);
-        return () -> new GuiElementBuilder(model).setName(Text.empty()).hideDefaultTooltip();
+        return () -> new GuiElementBuilder(model).setName(Component.empty()).hideDefaultTooltip();
     }
 
-    public static ItemStack genericIconRaw(Item item, String path, String base, int offset) {
+    public static ItemStackTemplate genericIconRaw(Item item, String path, String base, int offset) {
         var extra = offset == 0 ? "" : "_offset_" + offset;
 
         var texturePath = elementPath(path);
         var modelPath = elementPath(path + extra);
         SIMPLE_MODEL.add(new SimpleModel(texturePath, modelPath, base, offset));
-        return ItemDisplayElementUtil.getModel(texturePath);
+        return new ItemStackTemplate(Items.TRIAL_KEY, DataComponentPatch.builder().set(DataComponents.ITEM_MODEL, ResourcePackExtras.bridgeModel(texturePath)).build());
     }
 
     private static Identifier elementPath(String path) {
         return identifier("sgui/elements/" + path);
     }
 
-    public static Function<Text, Text> background(String path) {
+    public static Function<Component, Component> background(String path) {
         var builder = new StringBuilder().append(CHEST_SPACE0);
         var c = (character++);
         builder.append(c);
@@ -101,7 +105,7 @@ public class UiResourceCreator {
         var texture = new FontTexture(identifier("sgui/" + path), 13, 256, new char[][] { new char[] {c} });
 
         FONT_TEXTURES.add(texture);
-        return new TextBuilders(Text.literal(builder.toString()).setStyle(STYLE));
+        return new TextBuilders(Component.literal(builder.toString()).setStyle(STYLE));
     }
 
     public static void setup() {
@@ -202,10 +206,10 @@ public class UiResourceCreator {
         assetWriter.accept("assets/bingo/font/gui.json", fontBase.toString().getBytes(StandardCharsets.UTF_8));
     }
 
-    private record TextBuilders(Text base) implements Function<Text, Text> {
+    private record TextBuilders(Component base) implements Function<Component, Component> {
         @Override
-        public Text apply(Text text) {
-            return Text.empty().append(base).append(text);
+        public Component apply(Component text) {
+            return Component.empty().append(base).append(text);
         }
     }
 

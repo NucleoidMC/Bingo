@@ -21,7 +21,7 @@
   "depends": {
     "fabricloader": ">=${loader_version}",
     "fabric-api": "*",
-    "plasmid": "0.6.x",
+    "plasmid": "0.7.x",
     "factorytools": "*",
     "minecraft": ">=${minecraft_version}"
   }

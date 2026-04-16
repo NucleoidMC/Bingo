@@ -1,7 +1,7 @@
 package me.ellieis.bingo;
 
-import net.minecraft.item.ItemStack;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.server.level.ServerPlayer;
 import xyz.nucleoid.stimuli.event.EventResult;
 import xyz.nucleoid.stimuli.event.StimulusEvent;
 
@@ -20,5 +20,5 @@ public interface ItemCraftEvent {
          return EventResult.PASS;
     });
 
-    EventResult onItemCraft(ServerPlayerEntity plr, ItemStack stack);
+    EventResult onItemCraft(ServerPlayer plr, ItemStack stack);
 }

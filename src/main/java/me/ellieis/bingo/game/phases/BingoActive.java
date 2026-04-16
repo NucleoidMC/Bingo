@@ -1,44 +1,42 @@
 package me.ellieis.bingo.game.phases;
 
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.DynamicOps;
-import com.mojang.serialization.codecs.PrimitiveCodec;
+
 import me.ellieis.bingo.Bingo;
 import me.ellieis.bingo.BingoCardCommand;
 import me.ellieis.bingo.ItemCraftEvent;
 import me.ellieis.bingo.game.config.BingoConfig;
 import net.minecraft.SharedConstants;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.entity.mob.Angerable;
-import net.minecraft.entity.mob.MobEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.*;
-import net.minecraft.particle.ParticleTypes;
-import net.minecraft.predicate.entity.EntityPredicates;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.registry.entry.RegistryEntryList;
-import net.minecraft.screen.ScreenTexts;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.NeutralMob;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.world.entity.EntitySelector;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderSet;
+import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.GlobalPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.random.Random;
-import net.minecraft.world.GameMode;
-import net.minecraft.world.WorldProperties;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.resources.Identifier;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.item.*;
+import net.minecraft.world.item.AirItem;
+import net.minecraft.world.item.SpawnEggItem;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.storage.LevelData;
 import xyz.nucleoid.plasmid.api.game.GameActivity;
 import xyz.nucleoid.plasmid.api.game.GameCloseReason;
 import xyz.nucleoid.plasmid.api.game.GameSpace;
@@ -70,17 +68,17 @@ public class BingoActive {
     long timeoutTime;
     GameActivity activity;
     BingoConfig config;
-    ServerWorld world;
+    ServerLevel level;
     BlockPos spawnPos;
     GlobalWidgets widgets;
     SidebarWidget sidebar;
     Optional<TeamSelectionLobby> teamSelection;
     Optional<TeamManager> teamManager;
     HashMap<PlayerRef, GameTeamKey> playerTeams;
-    HashMap<ServerPlayerEntity, Long> playersRespawning = new HashMap<>();
+    HashMap<ServerPlayer, Long> playersRespawning = new HashMap<>();
     HashMap<PlayerRef, PlayerPos> lastPlayerPos = new HashMap<>();
-    ArrayList<ServerPlayerEntity> playersToRemove = new ArrayList<>();
-    RegistryEntryList<Item> items;
+    ArrayList<ServerPlayer> playersToRemove = new ArrayList<>();
+    HolderSet<Item> items;
     List<Item> disallowedItems = List.of(Items.KNOWLEDGE_BOOK, Items.DEBUG_STICK, Items.LIGHT, Items.BEDROCK, Items.VAULT, Items.PLAYER_HEAD, Items.INFESTED_COBBLESTONE, Items.INFESTED_DEEPSLATE, Items.INFESTED_STONE, Items.INFESTED_CHISELED_STONE_BRICKS, Items.INFESTED_CRACKED_STONE_BRICKS, Items.INFESTED_MOSSY_STONE_BRICKS, Items.INFESTED_STONE_BRICKS, Items.SPAWNER, Items.TRIAL_SPAWNER, Items.END_PORTAL_FRAME, Items.BARRIER, Items.STRUCTURE_BLOCK, Items.STRUCTURE_VOID, Items.SUSPICIOUS_GRAVEL, Items.SUSPICIOUS_SAND, Items.SMALL_AMETHYST_BUD, Items.MEDIUM_AMETHYST_BUD, Items.LARGE_AMETHYST_BUD, Items.PETRIFIED_OAK_SLAB, Items.REINFORCED_DEEPSLATE, Items.BUDDING_AMETHYST, Items.FARMLAND, Items.FROGSPAWN);
     List<Item> hardItems = List.of(Items.CREEPER_HEAD, Items.DRAGON_HEAD, Items.PIGLIN_HEAD, Items.ZOMBIE_HEAD, Items.ELYTRA, Items.DRAGON_BREATH, Items.BEACON, Items.NETHER_STAR, Items.WITHER_SKELETON_SKULL, Items.CHAINMAIL_CHESTPLATE, Items.CHAINMAIL_BOOTS, Items.CHAINMAIL_HELMET, Items.CHAINMAIL_LEGGINGS, Items.NETHERITE_INGOT, Items.NETHERITE_AXE, Items.NETHERITE_BLOCK, Items.NETHERITE_BOOTS, Items.NETHERITE_CHESTPLATE, Items.NETHERITE_HOE, Items.NETHERITE_LEGGINGS, Items.NETHERITE_HELMET, Items.NETHERITE_PICKAXE, Items.NETHERITE_SWORD, Items.NETHERITE_SHOVEL, Items.PITCHER_POD, Items.PITCHER_PLANT, Items.TORCHFLOWER, Items.TORCHFLOWER_SEEDS, Items.POPPED_CHORUS_FRUIT, Items.CHORUS_FLOWER, Items.CHORUS_FRUIT);
     final List<List<BingoSlot>> universalCard;
@@ -97,31 +95,31 @@ public class BingoActive {
             default -> null;
         };
     }
-    public BingoActive(GameSpace gameSpace, GameActivity activity, BingoConfig config, ServerWorld world, BlockPos spawnPos, Optional<TeamSelectionLobby> teamSelection, Optional<TeamManager> teamManager) {
+    public BingoActive(GameSpace gameSpace, GameActivity activity, BingoConfig config, ServerLevel level, BlockPos spawnPos, Optional<TeamSelectionLobby> teamSelection, Optional<TeamManager> teamManager) {
         this.gameSpace = gameSpace;
         this.activity = activity;
         this.config = config;
-        this.world = world;
+        this.level = level;
         this.spawnPos = spawnPos;
         this.teamSelection = teamSelection;
         this.teamManager = teamManager;
         this.widgets = GlobalWidgets.addTo(activity);
         this.sidebar = widgets.addSidebar();
-        this.startTime = world.getTime();
+        this.startTime = level.getGameTime();
         this.timeoutTime = config.timeLimit() + this.startTime;
         this.playerTeams = new HashMap<>();
-        world.setSpawnPoint(WorldProperties.SpawnPoint.create(world.getRegistryKey(), spawnPos, 0, 0));
+        level.setRespawnData(LevelData.RespawnData.of(level.dimension(), spawnPos, 0, 0));
         Bingo.activeGames.add(this);
         BingoActive.rules(activity);
         teamSelection.ifPresent(action -> {
             action.allocate(gameSpace.getPlayers().participants(), (key, plr) -> {
-                playerTeams.put(new PlayerRef(plr.getUuid()), key);
+                playerTeams.put(new PlayerRef(plr.getUUID()), key);
                 teamManager.get().addPlayerTo(plr, key);
             });
         });
-        this.items = RegistryEntryList.of(world.getRegistryManager()
-                .getOrThrow(RegistryKeys.ITEM)
-                .streamEntries()
+        this.items = HolderSet.direct(level.registryAccess()
+                .lookupOrThrow(Registries.ITEM)
+                .listElements()
                 .filter(this::isItemEnabled)
                 .toList());
         activity.listen(GameActivityEvents.DESTROY, (_reason) -> {
@@ -131,8 +129,8 @@ public class BingoActive {
             return acceptor.teleport((gameProfile -> {
                 if (acceptor.intent() == JoinIntent.PLAY ) {
                     UUID id = gameProfile.id();
-                    AtomicReference<Vec3d> playerPos = new AtomicReference<>();
-                    AtomicReference<ServerWorld> playerWorld = new AtomicReference<>();
+                    AtomicReference<Vec3> playerPos = new AtomicReference<>();
+                    AtomicReference<ServerLevel> playerlevel = new AtomicReference<>();
 
                     teamManager.ifPresent((manager) -> {
                         PlayerRef ref = new PlayerRef(id);
@@ -143,18 +141,18 @@ public class BingoActive {
                         }
                         if (lastPlayerPos.containsKey(ref)) {
                             PlayerPos obj = lastPlayerPos.get(ref);
-                            playerWorld.set(obj.world());
+                            playerlevel.set(obj.level());
                             playerPos.set(obj.pos());
                         }
                     });
                     if (playerPos.get() == null) {
-                        return new xyz.nucleoid.plasmid.api.util.PlayerPos(world, spawnPos.toCenterPos(), 0, 0);
+                        return new xyz.nucleoid.plasmid.api.util.PlayerPos(level, spawnPos.getCenter(), 0, 0);
                     } else {
-                        return new xyz.nucleoid.plasmid.api.util.PlayerPos(playerWorld.get(), playerPos.get(), 0, 0);
+                        return new xyz.nucleoid.plasmid.api.util.PlayerPos(playerlevel.get(), playerPos.get(), 0, 0);
 
                     }
                 } else {
-                    return new xyz.nucleoid.plasmid.api.util.PlayerPos(world, spawnPos.toCenterPos(), 0, 0);
+                    return new xyz.nucleoid.plasmid.api.util.PlayerPos(level, spawnPos.getCenter(), 0, 0);
                 }
             }));
         });
@@ -162,35 +160,35 @@ public class BingoActive {
         activity.listen(GamePlayerEvents.JOIN, (plr) -> {
             sidebar.addPlayer(plr);
             if (gameSpace.getPlayers().participants().contains(plr)) {
-                plr.changeGameMode(GameMode.SURVIVAL);
-                PlayerRef ref = new PlayerRef(plr.getUuid());
+                plr.setGameMode(GameType.SURVIVAL);
+                PlayerRef ref = new PlayerRef(plr.getUUID());
                 if (lastPlayerPos.containsKey(ref)) {
                     PlayerPos obj = lastPlayerPos.get(ref);
-                    PlayerInventory currentInventory = plr.getInventory();
-                    obj.inventory().forEach(currentInventory::setStack);
+                    Inventory currentInventory = plr.getInventory();
+                    obj.inventory().forEach(currentInventory::setItem);
                     for (int i = 98; i <= 103; i++) {
                         ItemStack stack = obj.inventory().get(i);
-                        plr.equipStack(slotToEquipmentSlot(i), stack);
+                        plr.setItemSlot(slotToEquipmentSlot(i), stack);
                     }
                 }
 
                 generateCardForPlayer(plr);
             } else {
-                plr.changeGameMode(GameMode.SPECTATOR);
+                plr.setGameMode(GameType.SPECTATOR);
             }
         });
         activity.listen(GamePlayerEvents.LEAVE, (plr) -> {
-            PlayerInventory playerInventory = plr.getInventory();
+            Inventory playerInventory = plr.getInventory();
             HashMap<Integer, ItemStack> inventory = new HashMap<>();
             // inventory slots
             for (int i = 0; i <= 35; i++) {
-                inventory.put(i, playerInventory.getStack(i));
+                inventory.put(i, playerInventory.getItem(i));
             }
             // armor slots
             for (int i = 98; i <= 103; i++) {
-                inventory.put(i, plr.getEquippedStack(slotToEquipmentSlot(i)));
+                inventory.put(i, plr.getItemBySlot(slotToEquipmentSlot(i)));
             }
-            lastPlayerPos.put(new PlayerRef(plr.getUuid()), new PlayerPos(plr.getEntityPos(), plr.getEntityWorld(), plr, inventory));
+            lastPlayerPos.put(new PlayerRef(plr.getUUID()), new PlayerPos(plr.position(), plr.level(), plr, inventory));
             playersRespawning.remove(plr);
         });
         activity.listen(GameActivityEvents.TICK, this::onTick);
@@ -198,12 +196,12 @@ public class BingoActive {
         activity.listen(ItemPickupEvent.EVENT, this::onItemPickup);
         activity.listen(ItemCraftEvent.EVENT, this::onCraft);
         activity.listen(PlayerChatEvent.EVENT, (plr, message, params) -> {
-            String content = message.getContent().getString();
+            String content = message.decoratedContent().getString();
             String[] args = content.split(" ");
             if (args.length > 0) {
                 if (args[0].equals("!bingocard")) {
                     if (args.length > 1) {
-                        ServerPlayerEntity otherPlr = gameSpace.getServer().getPlayerManager().getPlayer(args[1]);
+                        ServerPlayer otherPlr = gameSpace.getServer().getPlayerList().getPlayerByName(args[1]);
                         if (otherPlr != null) {
                             if (BingoCardCommand.showGui(plr, otherPlr)) {
                                 return EventResult.DENY;
@@ -217,9 +215,9 @@ public class BingoActive {
 
             return EventResult.PASS;
         });
-        activity.listen(NetherPortalOpenEvent.EVENT, (_world, _pos) -> config.hasNether() ? EventResult.ALLOW : EventResult.DENY);
+        activity.listen(NetherPortalOpenEvent.EVENT, (_level, _pos) -> config.hasNether() ? EventResult.ALLOW : EventResult.DENY);
         activity.listen(EndPortalOpenEvent.EVENT, (_context, _result) -> config.hasEnd() ? EventResult.ALLOW : EventResult.DENY);
-        sidebar.setTitle(GameConfig.shortName(activity.getGameSpace().getMetadata().sourceConfig()).copy().formatted(Formatting.GOLD));
+        sidebar.setTitle(GameConfig.shortName(activity.getGameSpace().getMetadata().sourceConfig()).copy().withStyle(ChatFormatting.GOLD));
         updateSidebar();
 
         if (!config.separate()) {
@@ -229,37 +227,37 @@ public class BingoActive {
         }
 
         gameSpace.getPlayers().participants().forEach(plr -> {
-            plr.changeGameMode(GameMode.SURVIVAL);
+            plr.setGameMode(GameType.SURVIVAL);
             generateCardForPlayer(plr);
-            plr.unlockRecipes(world.getRecipeManager().values());
-            MinecraftServer server = world.getServer();
-            server.getCommandManager().sendCommandTree(plr);
+            plr.awardRecipes(level.recipeAccess().getRecipes());
+            MinecraftServer server = level.getServer();
+            server.getCommands().sendCommands(plr);
             sidebar.addPlayer(plr);
             BingoCardCommand.showGui(plr, plr);
-            plr.sendMessage(Text.translatable("bingo.config.enabled_options"));
+            plr.sendSystemMessage(Component.translatable("bingo.config.enabled_options"));
             if (config.separate()) {
                 String key = "bingo.config.separate";
-                plr.sendMessage(Text.translatable(key).formatted(Formatting.GOLD).styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.translatable(key + ".desc")))));
+                plr.sendSystemMessage(Component.translatable(key).withStyle(ChatFormatting.GOLD).withStyle(style -> style.withHoverEvent(new HoverEvent.ShowText(Component.translatable(key + ".desc")))));
             }
             if (config.lockout()) {
                 String key = "bingo.config.lockout";
-                plr.sendMessage(Text.translatable(key).formatted(Formatting.GOLD).styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.translatable(key + ".desc")))));
+                plr.sendSystemMessage(Component.translatable(key).withStyle(ChatFormatting.GOLD).withStyle(style -> style.withHoverEvent(new HoverEvent.ShowText(Component.translatable(key + ".desc")))));
             }
             if (config.hardMode()) {
                 String key = "bingo.config.hard_mode";
-                plr.sendMessage(Text.translatable(key).formatted(Formatting.GOLD).styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.translatable(key + ".desc")))));
+                plr.sendSystemMessage(Component.translatable(key).withStyle(ChatFormatting.GOLD).withStyle(style -> style.withHoverEvent(new HoverEvent.ShowText(Component.translatable(key + ".desc")))));
             }
             if (config.genericArmorTrimDrops()) {
                 String key = "bingo.config.generic_armor_trim_drops";
-                plr.sendMessage(Text.translatable(key).formatted(Formatting.GOLD).styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.translatable(key + ".desc")))));
+                plr.sendSystemMessage(Component.translatable(key).withStyle(ChatFormatting.GOLD).withStyle(style -> style.withHoverEvent(new HoverEvent.ShowText(Component.translatable(key + ".desc")))));
             }
             if (config.genericSherdDrops()) {
                 String key = "bingo.config.generic_sherd_drops";
-                plr.sendMessage(Text.translatable(key).formatted(Formatting.GOLD).styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.translatable(key + ".desc")))));
+                plr.sendSystemMessage(Component.translatable(key).withStyle(ChatFormatting.GOLD).withStyle(style -> style.withHoverEvent(new HoverEvent.ShowText(Component.translatable(key + ".desc")))));
             }
             if (config.genericMusicDiscDrops()) {
                 String key = "bingo.config.generic_music_disc_drops";
-                plr.sendMessage(Text.translatable(key).formatted(Formatting.GOLD).styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.translatable(key + ".desc")))));
+                plr.sendSystemMessage(Component.translatable(key).withStyle(ChatFormatting.GOLD).withStyle(style -> style.withHoverEvent(new HoverEvent.ShowText(Component.translatable(key + ".desc")))));
             }
         });
     }
@@ -275,8 +273,8 @@ public class BingoActive {
         }
     }
 
-    private void generateCardForPlayer(ServerPlayerEntity plr) {
-        PlayerRef ref = new PlayerRef(plr.getUuid());
+    private void generateCardForPlayer(ServerPlayer plr) {
+        PlayerRef ref = new PlayerRef(plr.getUUID());
         if (bingoCards.containsKey(ref)) {
             return;
         }
@@ -305,12 +303,12 @@ public class BingoActive {
     }
     private void updateSidebar() {
         sidebar.set(content -> {
-            content.add(ScreenTexts.EMPTY);
-            content.add(Text.translatable("bingo.sidebar"));
-            content.add(Text.translatable("bingo.sidebar.desc"));
-            content.add(Text.translatable("bingo.sidebar.desc2"));
+            content.add(CommonComponents.EMPTY);
+            content.add(Component.translatable("bingo.sidebar"));
+            content.add(Component.translatable("bingo.sidebar.desc"));
+            content.add(Component.translatable("bingo.sidebar.desc2"));
             if (config.timeLimit() != 0) {
-                long timeLeft = (long) Math.abs(Math.floor((world.getTime() / SharedConstants.TICKS_PER_SECOND) - (startTime / SharedConstants.TICKS_PER_SECOND)) - config.timeLimit());
+                long timeLeft = (long) Math.abs(Math.floor((level.getGameTime() / SharedConstants.TICKS_PER_SECOND) - (startTime / SharedConstants.TICKS_PER_SECOND)) - config.timeLimit());
                 long minutes = timeLeft / 60;
                 String seconds;
                 if (timeLeft % 60 > 10) {
@@ -318,13 +316,13 @@ public class BingoActive {
                 } else {
                     seconds = "0" + timeLeft % 60;
                 }
-                content.add(Text.translatable("bingo.sidebar.time_left", minutes, seconds));
+                content.add(Component.translatable("bingo.sidebar.time_left", minutes, seconds));
             }
-            content.add(ScreenTexts.EMPTY);
+            content.add(CommonComponents.EMPTY);
         });
     }
-    private boolean checkForWin(ServerPlayerEntity plr) {
-        List<List<BingoSlot>> bingoCard = bingoCards.get(new PlayerRef(plr.getUuid()));
+    private boolean checkForWin(ServerPlayer plr) {
+        List<List<BingoSlot>> bingoCard = bingoCards.get(new PlayerRef(plr.getUUID()));
         if (config.lockout()) {
             int claimedSlotCount = 0;
             for (List<BingoSlot> col : bingoCard) {
@@ -402,13 +400,14 @@ public class BingoActive {
         return horizontalWin || verticalWin || diagonalWin;
     }
     private boolean isSameItem(Item item, Item otherItem) {
+
         return (item.equals(otherItem) ||
-                config.genericSherdDrops() && item.getDefaultStack().getRegistryEntry().getIdAsString().contains("sherd") && otherItem.getDefaultStack().getRegistryEntry().getIdAsString().contains("sherd") ||
-                config.genericMusicDiscDrops() && item.getDefaultStack().getRegistryEntry().getIdAsString().contains("disc") && otherItem.getDefaultStack().getRegistryEntry().getIdAsString().contains("disc") ||
+                config.genericSherdDrops() && item.getDefaultInstance().typeHolder().getRegisteredName().contains("sherd") && otherItem.getDefaultInstance().typeHolder().getRegisteredName().contains("sherd") ||
+                config.genericMusicDiscDrops() && item.getDefaultInstance().typeHolder().getRegisteredName().contains("disc") && otherItem.getDefaultInstance().typeHolder().getRegisteredName().contains("disc") ||
                 config.genericArmorTrimDrops() && item instanceof SmithingTemplateItem && otherItem instanceof SmithingTemplateItem);
     }
-    private void checkForScore(ServerPlayerEntity plr, ItemStack stack) {
-        List<List<BingoSlot>> bingoCard = bingoCards.get(new PlayerRef(plr.getUuid()));
+    private void checkForScore(ServerPlayer plr, ItemStack stack) {
+        List<List<BingoSlot>> bingoCard = bingoCards.get(new PlayerRef(plr.getUUID()));
         int colIndex = 99;
         int rowIndex = 99;
         for (List<BingoSlot> col : bingoCard) {
@@ -421,12 +420,12 @@ public class BingoActive {
             }
         }
         if (colIndex != 99 ) {
-            ServerWorld plrWorld = plr.getEntityWorld();
+            ServerLevel plrlevel = plr.level();
             // there doesn't need to be specific code for updating team member's bingo cards as they all share the same underlying references
             bingoCard.get(colIndex).set(rowIndex, new BingoSlot(stack.getItem(), true, config.lockout()));
-            plrWorld.spawnParticles(ParticleTypes.TOTEM_OF_UNDYING, plr.getX(), plr.getY(), plr.getZ(), 32, 1, 1, 1, 1);
-            plrWorld.playSound(null, plr.getBlockPos(), SoundEvents.ENTITY_FIREWORK_ROCKET_BLAST, SoundCategory.PLAYERS, 1, 1);
-            Text plrName;
+            plrlevel.sendParticles(ParticleTypes.TOTEM_OF_UNDYING, plr.getX(), plr.getY(), plr.getZ(), 32, 1, 1, 1, 1);
+            plrlevel.playSound(null, plr.blockPosition(), SoundEvents.FIREWORK_ROCKET_BLAST, SoundSource.PLAYERS, 1, 1);
+            Component plrName;
             if (plr.getDisplayName() != null) {
                 plrName = plr.getDisplayName();
             } else {
@@ -452,24 +451,24 @@ public class BingoActive {
                 });
             }
 
-            gameSpace.getPlayers().sendMessage(Text.translatable("bingo.itempickup", plrName, stack.getName().copy().formatted(Formatting.GOLD)).styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.translatable("bingo.itempickup.hover", plr.getName()))).withClickEvent(new ClickEvent.RunCommand("/bingocard " + plr.getName().getString()))));
+            gameSpace.getPlayers().sendMessage(Component.translatable("bingo.itempickup", plrName, stack.getHoverName().copy().withStyle(ChatFormatting.GOLD)).withStyle(style -> style.withHoverEvent(new HoverEvent.ShowText(Component.translatable("bingo.itempickup.hover", plr.getName()))).withClickEvent(new ClickEvent.RunCommand("/bingocard " + plr.getName().getString()))));
             if (checkForWin(plr)) {
                 End(plr);
             }
         }
     }
 
-    private EventResult onCraft(ServerPlayerEntity plr, ItemStack stack) {
+    private EventResult onCraft(ServerPlayer plr, ItemStack stack) {
         checkForScore(plr, stack);
         return EventResult.PASS;
     }
 
-    private EventResult onItemPickup(ServerPlayerEntity plr, ItemEntity item, ItemStack stack) {
+    private EventResult onItemPickup(ServerPlayer plr, ItemEntity item, ItemStack stack) {
         checkForScore(plr, stack);
         return EventResult.PASS;
     }
     private Item generateItem(List<List<BingoSlot>> bingoCard) {
-        Item item = items.getRandom(Random.create()).orElseThrow().value();
+        Item item = items.getRandomElement(RandomSource.create()).orElseThrow().value();
         for (List<BingoSlot> col : bingoCard) {
             for (BingoSlot slot : col) {
                 if (isSameItem(item, slot.item())) {
@@ -494,8 +493,8 @@ public class BingoActive {
         return bingoCard;
     }
 
-    private boolean isItemEnabled(RegistryEntry.Reference<Item> entry) {
-        if (entry.getKey().isPresent() && !entry.getKey().get().getValue().getNamespace().equals(Identifier.DEFAULT_NAMESPACE)) {
+    private boolean isItemEnabled(Holder.Reference<Item> entry) {
+        if (entry.unwrapKey().isPresent() && !entry.unwrapKey().get().identifier().getNamespace().equals(Identifier.DEFAULT_NAMESPACE)) {
             return false;
         }
 
@@ -504,7 +503,7 @@ public class BingoActive {
             return false;
         }
 
-        return !(item instanceof OperatorOnlyBlockItem) && !(item instanceof AirBlockItem) && !(item instanceof SpawnEggItem) && !disallowedItems.contains(item) && item.isEnabled(world.getEnabledFeatures());
+        return !(item instanceof GameMasterBlockItem) && !(item instanceof AirItem) && !(item instanceof SpawnEggItem) && !disallowedItems.contains(item) && item.isEnabled(level.enabledFeatures());
     }
 
     public static void rules(GameActivity activity) {
@@ -516,7 +515,7 @@ public class BingoActive {
         activity.deny(GameRuleType.HUNGER);
         activity.deny(GameRuleType.SATURATED_REGENERATION);
     }
-    public static void Open(GameSpace gameSpace, BingoConfig config, ServerWorld world, BlockPos spawnPos, Optional<TeamSelectionLobby> teamSelection) {
+    public static void Open(GameSpace gameSpace, BingoConfig config, ServerLevel level, BlockPos spawnPos, Optional<TeamSelectionLobby> teamSelection) {
         gameSpace.setActivity(activity -> {
             Optional<TeamManager> maybeTeamManager = config.teams().map(teams -> {
                 TeamManager teamManager = TeamManager.addTo(activity);
@@ -531,23 +530,23 @@ public class BingoActive {
                 }
                 return teamManager;
             });
-            new BingoActive(gameSpace, activity, config, world, spawnPos, teamSelection, maybeTeamManager);
+            new BingoActive(gameSpace, activity, config, level, spawnPos, teamSelection, maybeTeamManager);
         });
     }
 
-    private EventResult onDeath(ServerPlayerEntity plr, DamageSource source) {
-        Text deathMessage = plr.getDamageTracker().getDeathMessage();
-        gameSpace.getPlayers().forEach(plr1 -> plr1.sendMessage(deathMessage));
+    private EventResult onDeath(ServerPlayer plr, DamageSource source) {
+        Component deathMessage = plr.getCombatTracker().getDeathMessage();
+        gameSpace.getPlayers().forEach(plr1 -> plr1.sendSystemMessage(deathMessage));
         playersRespawning.put(plr, gameSpace.getTime() + SharedConstants.TICKS_PER_SECOND * 5);
         plr.getInventory().dropAll();
-        plr.changeGameMode(GameMode.SPECTATOR);
+        plr.setGameMode(GameType.SPECTATOR);
         // forgive mobs on death
-        Box box = new Box(plr.getBlockPos()).expand(32.0, 10.0, 32.0);
-        plr.getEntityWorld()
-                .getEntitiesByClass(MobEntity.class, box, EntityPredicates.EXCEPT_SPECTATOR)
+        AABB box = new AABB(plr.blockPosition()).inflate(32.0, 10.0, 32.0);
+        plr.level()
+                .getEntitiesOfClass(Mob.class, box, EntitySelector.NO_SPECTATORS)
                 .stream()
-                .filter(entity -> entity instanceof Angerable)
-                .forEach(entity -> ((Angerable)entity).forgive(plr.getEntityWorld(), plr));
+                .filter(entity -> entity instanceof NeutralMob)
+                .forEach(entity -> ((NeutralMob)entity).playerDied(plr.level(), plr));
         return EventResult.DENY;
     }
 
@@ -557,15 +556,15 @@ public class BingoActive {
             long timeLeft = respawnTime - time;
             if (timeLeft <= 0) {
 
-                plr.changeGameMode(GameMode.SURVIVAL);
-                plr.getHungerManager().setFoodLevel(20);
-                plr.getHungerManager().setSaturationLevel(20);
+                plr.setGameMode(GameType.SURVIVAL);
+                plr.getFoodData().setFoodLevel(20);
+                plr.getFoodData().setSaturation(20);
                 plr.setHealth(plr.getMaxHealth());
-                plr.teleport(world, spawnPos.getX(), spawnPos.getY(), spawnPos.getZ(), Set.of(), 0, 0, false);
-                plr.sendMessage(Text.literal(""), true);
+                plr.teleportTo(level, spawnPos.getX(), spawnPos.getY(), spawnPos.getZ(), Set.of(), 0, 0, false);
+                plr.sendSystemMessage(Component.literal(""), true);
                 playersToRemove.add(plr);
             } else {
-                plr.sendMessage(Text.translatable("bingo.respawning", (timeLeft + 20) / 20), true);
+                plr.sendSystemMessage(Component.translatable("bingo.respawning", (timeLeft + 20) / 20), true);
             }
         });
         playersToRemove.forEach(plr -> playersRespawning.remove(plr));
@@ -588,11 +587,11 @@ public class BingoActive {
         // no player won
         gameWon = true;
         gameWinTime = gameSpace.getTime();
-        gameSpace.getPlayers().sendMessage(Text.translatable("bingo.win_message.timeout"));
+        gameSpace.getPlayers().sendMessage(Component.translatable("bingo.win_message.timeout"));
     }
-    private void End(ServerPlayerEntity winner) {
+    private void End(ServerPlayer winner) {
         int claimedSlotCount = 0;
-        PlayerRef ref = new PlayerRef(winner.getUuid());
+        PlayerRef ref = new PlayerRef(winner.getUUID());
         for (List<BingoSlot> col : bingoCards.get(ref)) {
             for (BingoSlot slot : col) {
                 if (slot.marked()) {
@@ -605,7 +604,7 @@ public class BingoActive {
             String teamPlayers = "";
             for (PlayerRef plrRef : teamManager.get().allPlayersIn(winningTeam)) {
                 String plrName;
-                ServerPlayerEntity plr = plrRef.getEntity(gameSpace);
+                ServerPlayer plr = plrRef.getEntity(gameSpace);
                 if (plr == null) {
                     continue;
                 }
@@ -619,7 +618,7 @@ public class BingoActive {
             }
             teamPlayers = teamPlayers.substring(0, teamPlayers.length() - 2);
             String finalTeamPlayers = teamPlayers;
-            gameSpace.getPlayers().sendMessage(Text.translatable("bingo.win_message", teamManager.get().getTeamConfig(winningTeam).name(), claimedSlotCount).styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.literal(finalTeamPlayers)))));
+            gameSpace.getPlayers().sendMessage(Component.translatable("bingo.win_message", teamManager.get().getTeamConfig(winningTeam).name(), claimedSlotCount).withStyle(style -> style.withHoverEvent(new HoverEvent.ShowText(Component.literal(finalTeamPlayers)))));
         } else {
             String plrName;
             if (winner.getDisplayName() != null) {
@@ -627,16 +626,16 @@ public class BingoActive {
             } else {
                 plrName = winner.getName().getString();
             }
-            gameSpace.getPlayers().sendMessage(Text.translatable("bingo.win_message", Text.literal(plrName).formatted(Formatting.GOLD), claimedSlotCount));
+            gameSpace.getPlayers().sendMessage(Component.translatable("bingo.win_message", Component.literal(plrName).withStyle(ChatFormatting.GOLD), claimedSlotCount));
         }
 
         gameWon = true;
         gameWinTime = gameSpace.getTime();
     }
 
-    record PlayerPos(Vec3d pos, ServerWorld world, PlayerRef plr, HashMap<Integer, ItemStack> inventory) {
-        public PlayerPos(Vec3d pos, ServerWorld world, ServerPlayerEntity plr, HashMap<Integer, ItemStack> inventory) {
-            this(pos, world, new PlayerRef(plr.getUuid()), inventory);
+    record PlayerPos(Vec3 pos, ServerLevel level, PlayerRef plr, HashMap<Integer, ItemStack> inventory) {
+        public PlayerPos(Vec3 pos, ServerLevel level, ServerPlayer plr, HashMap<Integer, ItemStack> inventory) {
+            this(pos, level, new PlayerRef(plr.getUUID()), inventory);
         }
     }
 }
