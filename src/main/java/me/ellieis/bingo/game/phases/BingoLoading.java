@@ -103,7 +103,6 @@ public class BingoLoading {
             activity.listen(GameActivityEvents.TICK, () -> {
                 if (starterWorld.areEntitiesLoaded(chunkPos)) {
                     BingoWaiting.Open(activity.getGameSpace(), config, starterWorld, spawnPos);
-                    System.out.println("boobs");
                     activity.getGameSpace().getLevels().remove(waitingLevel);
                 } else {
                     activity.getGameSpace().getPlayers().forEach(

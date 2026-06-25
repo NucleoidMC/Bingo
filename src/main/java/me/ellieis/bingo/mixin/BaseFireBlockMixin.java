@@ -16,10 +16,10 @@ import xyz.nucleoid.plasmid.api.game.GameSpaceManager;
 @Mixin(BaseFireBlock.class)
 public class BaseFireBlockMixin {
     @Inject(method = "inPortalDimension", at = @At(value = "HEAD"), cancellable = true)
-    private static void bingo$allowNetherPortalsInBingo(Level world, CallbackInfoReturnable<Boolean> cir) {
-        GameSpace gameSpace = GameSpaceManager.get().byLevel(world);
+    private static void bingo$allowNetherPortalsInBingo(Level level, CallbackInfoReturnable<Boolean> cir) {
+        GameSpace gameSpace = GameSpaceManager.get().byLevel(level);
         if (gameSpace != null && Bingo.isGameLevel(gameSpace)) {
-            ResourceKey<DimensionType> dimension = world.dimensionTypeRegistration().unwrapKey().get();;
+            ResourceKey<DimensionType> dimension = level.dimensionTypeRegistration().unwrapKey().get();;
             cir.setReturnValue(dimension.equals(BuiltinDimensionTypes.NETHER) || dimension.equals(BuiltinDimensionTypes.OVERWORLD));
         }
     }

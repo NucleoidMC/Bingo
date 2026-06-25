@@ -26,8 +26,8 @@ import xyz.nucleoid.plasmid.api.game.GameSpaceManager;
 public class EndPortalBlockMixin {
     @ModifyArg(method = "getPortalDestination",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;getLevel(Lnet/minecraft/resources/ResourceKey;)Lnet/minecraft/server/level/ServerLevel;"), index = 0)
-    private ResourceKey<Level> bingo$allowEndPortalsInGameWorld(ResourceKey<Level> original, @Local(argsOnly = true) @NotNull ServerLevel world) {
-        GameSpace gameSpace = GameSpaceManager.get().byLevel(world);
+    private ResourceKey<Level> bingo$allowEndPortalsInGameWorld(ResourceKey<Level> original, @Local(argsOnly = true, name = "currentLevel") @NotNull ServerLevel level) {
+        GameSpace gameSpace = GameSpaceManager.get().byLevel(level);
         if (gameSpace != null && Bingo.isGameLevel(gameSpace)) {
             ServerLevel overworld = null;
             ServerLevel end = null;
@@ -43,7 +43,7 @@ public class EndPortalBlockMixin {
             if (overworld == null || end == null) {
                 return original;
             }
-            ResourceKey<DimensionType> dimension = world.dimensionTypeRegistration().unwrapKey().get();
+            ResourceKey<DimensionType> dimension = level.dimensionTypeRegistration().unwrapKey().get();
             if (dimension.equals(BuiltinDimensionTypes.OVERWORLD)) {
                 return end.dimension();
             } else if (dimension.equals(BuiltinDimensionTypes.END)) {
@@ -56,9 +56,9 @@ public class EndPortalBlockMixin {
     }
 
     @Inject(method = "getPortalDestination",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/core/BlockPos;getBottomCenter()Lnet/minecraft/world/phys/Vec3;"))
-    private void bingo$isEndCheck(ServerLevel world, Entity entity, BlockPos pos, CallbackInfoReturnable<TeleportTransition> cir, @Local(ordinal = 1) @NotNull ServerLevel otherServerWorld, @Local(ordinal = 0) LocalBooleanRef isEnd) {
-        ResourceKey<DimensionType> otherDimension = otherServerWorld.dimensionTypeRegistration().unwrapKey().get();
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/phys/Vec3;atBottomCenterOf(Lnet/minecraft/core/Vec3i;)Lnet/minecraft/world/phys/Vec3;"))
+    private void bingo$isEndCheck(ServerLevel level, Entity entity, BlockPos pos, CallbackInfoReturnable<TeleportTransition> cir, @Local(ordinal = 1) @NotNull ServerLevel otherLevel, @Local(name = "fromEnd") LocalBooleanRef isEnd) {
+        ResourceKey<DimensionType> otherDimension = otherLevel.dimensionTypeRegistration().unwrapKey().get();
         isEnd.set(otherDimension.equals(BuiltinDimensionTypes.END));
     }
 }

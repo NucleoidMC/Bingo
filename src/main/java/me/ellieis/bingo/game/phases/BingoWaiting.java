@@ -4,6 +4,7 @@ import me.ellieis.bingo.game.config.BingoConfig;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.phys.Vec3;
 import xyz.nucleoid.plasmid.api.game.GameActivity;
 import xyz.nucleoid.plasmid.api.game.GameResult;
 import xyz.nucleoid.plasmid.api.game.GameSpace;
@@ -47,7 +48,7 @@ public class BingoWaiting {
         activity.listen(PlayerDamageEvent.EVENT, (_plr, _source, _damage) -> EventResult.DENY);
         activity.listen(GamePlayerEvents.OFFER, JoinOffer::accept);
         activity.listen(GamePlayerEvents.ACCEPT, acceptor ->
-                acceptor.teleport(level, spawnPos.getCenter())
+                acceptor.teleport(level, Vec3.atCenterOf(spawnPos))
                         .thenRunForEach(plr -> plr.setGameMode(GameType.ADVENTURE)));
 
 

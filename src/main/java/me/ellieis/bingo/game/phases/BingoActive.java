@@ -146,13 +146,13 @@ public class BingoActive {
                         }
                     });
                     if (playerPos.get() == null) {
-                        return new xyz.nucleoid.plasmid.api.util.PlayerPos(level, spawnPos.getCenter(), 0, 0);
+                        return new xyz.nucleoid.plasmid.api.util.PlayerPos(level, Vec3.atCenterOf(spawnPos), 0, 0);
                     } else {
                         return new xyz.nucleoid.plasmid.api.util.PlayerPos(playerlevel.get(), playerPos.get(), 0, 0);
 
                     }
                 } else {
-                    return new xyz.nucleoid.plasmid.api.util.PlayerPos(level, spawnPos.getCenter(), 0, 0);
+                    return new xyz.nucleoid.plasmid.api.util.PlayerPos(level, Vec3.atCenterOf(spawnPos), 0, 0);
                 }
             }));
         });

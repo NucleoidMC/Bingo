@@ -55,7 +55,7 @@ public class BingoCardCommand {
                     if (hasMainPack) {
                         gui.setSlot(index, CLAIMED_SLOT.get().setName(slot.item().getDefaultInstance().getItemName()));
                     } else {
-                        gui.setSlot(index, Items.LIME_STAINED_GLASS_PANE.getDefaultInstance());
+                        gui.setSlot(index, Items.STAINED_GLASS_PANE.lime().getDefaultInstance());
                     }
                 } else if (slot.locked()) {
                     if (hasMainPack) {
