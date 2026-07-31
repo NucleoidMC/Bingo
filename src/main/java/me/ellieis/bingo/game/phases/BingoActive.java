@@ -139,20 +139,19 @@ public class BingoActive {
                     UUID id = gameProfile.id();
                     AtomicReference<Vec3> playerPos = new AtomicReference<>();
                     AtomicReference<ServerLevel> playerlevel = new AtomicReference<>();
-
+                    PlayerRef ref = new PlayerRef(id);
                     teamManager.ifPresent((manager) -> {
-                        PlayerRef ref = new PlayerRef(id);
                         if (playerTeams.containsKey(ref)) {
                             manager.addPlayerTo(ref, playerTeams.get(ref));
                         } else {
                             manager.addPlayerTo(ref, manager.getSmallestTeam());
                         }
-                        if (lastPlayerPos.containsKey(ref)) {
-                            PlayerPos obj = lastPlayerPos.get(ref);
-                            playerlevel.set(obj.level());
-                            playerPos.set(obj.pos());
-                        }
                     });
+                    if (lastPlayerPos.containsKey(ref)) {
+                        PlayerPos obj = lastPlayerPos.get(ref);
+                        playerlevel.set(obj.level());
+                        playerPos.set(obj.pos());
+                    }
                     if (playerPos.get() == null) {
                         return new xyz.nucleoid.plasmid.api.util.PlayerPos(level, Vec3.atCenterOf(spawnPos), 0, 0);
                     } else {
