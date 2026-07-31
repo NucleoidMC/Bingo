@@ -88,7 +88,7 @@ public class BingoLoading {
             }
 
             BlockPos spawnPos = findSpawnPos(starterWorld);
-            long chunkPos = new ChunkPos(spawnPos.getX(), spawnPos.getZ()).pack();
+            long chunkPos = ChunkPos.containing(spawnPos).pack();
             activity.listen(GamePlayerEvents.OFFER, JoinOffer::accept);
             activity.listen(GamePlayerEvents.ACCEPT, (acceptor) -> acceptor.teleport(waitingLevel, new Vec3(0, 64, 0))
                 .thenRunForEach(plr -> {
@@ -97,7 +97,7 @@ public class BingoLoading {
                 )
             );
             activity.listen(GameActivityEvents.CREATE, () -> {
-                starterWorld.getChunkSource().addTicket(new Ticket(TicketType.FORCED, 2), new ChunkPos(spawnPos.getX(), spawnPos.getZ()));
+                starterWorld.getChunkSource().addTicket(new Ticket(TicketType.FORCED, 2), ChunkPos.containing(spawnPos));
             });
             activity.listen(GameActivityEvents.REQUEST_START, () -> GameResult.error(Component.translatable("bingo.generating")));
             activity.listen(GameActivityEvents.TICK, () -> {

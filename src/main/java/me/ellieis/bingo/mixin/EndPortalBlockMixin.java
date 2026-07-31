@@ -7,7 +7,6 @@ import net.minecraft.world.level.block.EndPortalBlock;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.resources.Identifier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.level.Level;
@@ -26,8 +25,8 @@ import xyz.nucleoid.plasmid.api.game.GameSpaceManager;
 public class EndPortalBlockMixin {
     @ModifyArg(method = "getPortalDestination",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;getLevel(Lnet/minecraft/resources/ResourceKey;)Lnet/minecraft/server/level/ServerLevel;"), index = 0)
-    private ResourceKey<Level> bingo$allowEndPortalsInGameWorld(ResourceKey<Level> original, @Local(argsOnly = true, name = "currentLevel") @NotNull ServerLevel level) {
-        GameSpace gameSpace = GameSpaceManager.get().byLevel(level);
+    private ResourceKey<Level> bingo$allowEndPortalsInGameWorld(ResourceKey<Level> original, @Local(argsOnly = true, name = "currentLevel") @NotNull ServerLevel currentLevel) {
+        GameSpace gameSpace = GameSpaceManager.get().byLevel(currentLevel);
         if (gameSpace != null && Bingo.isGameLevel(gameSpace)) {
             ServerLevel overworld = null;
             ServerLevel end = null;
@@ -39,11 +38,10 @@ public class EndPortalBlockMixin {
                     end = gameLevel;
                 }
             }
-
             if (overworld == null || end == null) {
                 return original;
             }
-            ResourceKey<DimensionType> dimension = level.dimensionTypeRegistration().unwrapKey().get();
+            ResourceKey<DimensionType> dimension = currentLevel.dimensionTypeRegistration().unwrapKey().get();
             if (dimension.equals(BuiltinDimensionTypes.OVERWORLD)) {
                 return end.dimension();
             } else if (dimension.equals(BuiltinDimensionTypes.END)) {

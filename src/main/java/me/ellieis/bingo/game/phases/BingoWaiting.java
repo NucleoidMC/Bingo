@@ -36,7 +36,7 @@ public class BingoWaiting {
         this.teamSelection = teamSelection;
 
         gameSpace.getPlayers().forEach((plr) -> {
-            System.out.println(plr.teleportTo(level, spawnPos.getX(), spawnPos.getY(), spawnPos.getZ(), Set.of(), 0, 0, false));
+            plr.teleportTo(level, spawnPos.getX(), spawnPos.getY(), spawnPos.getZ(), Set.of(), 0, 0, false);
             plr.setGameMode(GameType.ADVENTURE);
         });
 

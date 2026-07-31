@@ -6,6 +6,13 @@ import me.ellieis.bingo.BingoCardCommand;
 import me.ellieis.bingo.ItemCraftEvent;
 import me.ellieis.bingo.game.config.BingoConfig;
 import net.minecraft.SharedConstants;
+import net.minecraft.advancements.AdvancementHolder;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientboundContainerClosePacket;
+import net.minecraft.network.protocol.game.ServerboundSeenAdvancementsPacket;
+import net.minecraft.server.ServerAdvancementManager;
+import net.minecraft.server.dialog.*;
+import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.damagesource.DamageSource;
@@ -52,6 +59,7 @@ import xyz.nucleoid.plasmid.api.game.rule.GameRuleType;
 import xyz.nucleoid.plasmid.api.util.PlayerRef;
 import xyz.nucleoid.stimuli.event.EventResult;
 import xyz.nucleoid.stimuli.event.item.ItemPickupEvent;
+import xyz.nucleoid.stimuli.event.player.PlayerC2SPacketEvent;
 import xyz.nucleoid.stimuli.event.player.PlayerChatEvent;
 import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
 import xyz.nucleoid.stimuli.event.world.EndPortalOpenEvent;
@@ -215,6 +223,7 @@ public class BingoActive {
 
             return EventResult.PASS;
         });
+        activity.listen(PlayerC2SPacketEvent.EVENT, this::onPacketSend);
         activity.listen(NetherPortalOpenEvent.EVENT, (_level, _pos) -> config.hasNether() ? EventResult.ALLOW : EventResult.DENY);
         activity.listen(EndPortalOpenEvent.EVENT, (_context, _result) -> config.hasEnd() ? EventResult.ALLOW : EventResult.DENY);
         sidebar.setTitle(GameConfig.shortName(activity.getGameSpace().getMetadata().sourceConfig()).copy().withStyle(ChatFormatting.GOLD));
@@ -262,6 +271,14 @@ public class BingoActive {
         });
     }
 
+    private EventResult onPacketSend(ServerPlayer player, Packet<?> packet) {
+        if (packet instanceof ServerboundSeenAdvancementsPacket) {
+            player.closeContainer();
+            BingoCardCommand.showGui(player, player);
+        }
+        return EventResult.PASS;
+    }
+
     private void deepCopyCard(List<List<BingoSlot>> original, List<List<BingoSlot>> copy) {
         // deep copy is necessary so that the underlying object references don't get shared
         for (int colIndex = 0; colIndex < 5; colIndex++) {
@@ -305,8 +322,9 @@ public class BingoActive {
         sidebar.set(content -> {
             content.add(CommonComponents.EMPTY);
             content.add(Component.translatable("bingo.sidebar"));
-            content.add(Component.translatable("bingo.sidebar.desc"));
-            content.add(Component.translatable("bingo.sidebar.desc2"));
+            content.add(Component.translatable("bingo.sidebar.desc", Component.literal("!bingocard").withStyle(ChatFormatting.GOLD)));
+            content.add(Component.translatable("bingo.sidebar.desc2", Component.keybind("key.advancements").withStyle(ChatFormatting.GOLD)));
+            content.add(Component.translatable("bingo.sidebar.desc3"));
             if (config.timeLimit() != 0) {
                 long timeLeft = (long) Math.abs(Math.floor((level.getGameTime() / SharedConstants.TICKS_PER_SECOND) - (startTime / SharedConstants.TICKS_PER_SECOND)) - config.timeLimit());
                 long minutes = timeLeft / 60;
