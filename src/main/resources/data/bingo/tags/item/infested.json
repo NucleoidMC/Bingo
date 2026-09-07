@@ -1,0 +1,12 @@
+{
+  "replace": false,
+  "values": [
+    "infested_cobblestone",
+    "infested_deepslate",
+    "infested_stone",
+    "infested_chiseled_stone_bricks",
+    "infested_cracked_stone_bricks",
+    "infested_mossy_stone_bricks",
+    "infested_stone_bricks"
+  ]
+}

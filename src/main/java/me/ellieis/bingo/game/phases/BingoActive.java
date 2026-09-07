@@ -13,6 +13,7 @@ import net.minecraft.network.protocol.game.ServerboundSeenAdvancementsPacket;
 import net.minecraft.server.ServerAdvancementManager;
 import net.minecraft.server.dialog.*;
 import net.minecraft.server.packs.resources.PreparableReloadListener;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.damagesource.DamageSource;
@@ -87,7 +88,6 @@ public class BingoActive {
     HashMap<PlayerRef, PlayerPos> lastPlayerPos = new HashMap<>();
     ArrayList<ServerPlayer> playersToRemove = new ArrayList<>();
     HolderSet<Item> items;
-    List<Item> disallowedItems = List.of(Items.KNOWLEDGE_BOOK, Items.DEBUG_STICK, Items.LIGHT, Items.BEDROCK, Items.VAULT, Items.PLAYER_HEAD, Items.INFESTED_COBBLESTONE, Items.INFESTED_DEEPSLATE, Items.INFESTED_STONE, Items.INFESTED_CHISELED_STONE_BRICKS, Items.INFESTED_CRACKED_STONE_BRICKS, Items.INFESTED_MOSSY_STONE_BRICKS, Items.INFESTED_STONE_BRICKS, Items.SPAWNER, Items.TRIAL_SPAWNER, Items.END_PORTAL_FRAME, Items.BARRIER, Items.STRUCTURE_BLOCK, Items.STRUCTURE_VOID, Items.SUSPICIOUS_GRAVEL, Items.SUSPICIOUS_SAND, Items.SMALL_AMETHYST_BUD, Items.MEDIUM_AMETHYST_BUD, Items.LARGE_AMETHYST_BUD, Items.PETRIFIED_OAK_SLAB, Items.REINFORCED_DEEPSLATE, Items.BUDDING_AMETHYST, Items.FARMLAND, Items.FROGSPAWN);
     List<Item> hardItems = List.of(Items.CREEPER_HEAD, Items.DRAGON_HEAD, Items.PIGLIN_HEAD, Items.ZOMBIE_HEAD, Items.ELYTRA, Items.DRAGON_BREATH, Items.BEACON, Items.NETHER_STAR, Items.WITHER_SKELETON_SKULL, Items.CHAINMAIL_CHESTPLATE, Items.CHAINMAIL_BOOTS, Items.CHAINMAIL_HELMET, Items.CHAINMAIL_LEGGINGS, Items.NETHERITE_INGOT, Items.NETHERITE_AXE, Items.NETHERITE_BLOCK, Items.NETHERITE_BOOTS, Items.NETHERITE_CHESTPLATE, Items.NETHERITE_HOE, Items.NETHERITE_LEGGINGS, Items.NETHERITE_HELMET, Items.NETHERITE_PICKAXE, Items.NETHERITE_SWORD, Items.NETHERITE_SHOVEL, Items.PITCHER_POD, Items.PITCHER_PLANT, Items.TORCHFLOWER, Items.TORCHFLOWER_SEEDS, Items.POPPED_CHORUS_FRUIT, Items.CHORUS_FLOWER, Items.CHORUS_FRUIT);
     final List<List<BingoSlot>> universalCard;
     public HashMap<GameTeamKey, List<List<BingoSlot>>> teamBingoCards = new HashMap<>();
@@ -515,12 +515,40 @@ public class BingoActive {
             return false;
         }
 
+        for (Holder<Item> allowedItem : config.itemFilter().allowedItems()) {
+            if (entry.is(allowedItem)) {
+                return true;
+            }
+        }
+        for (TagKey<Item> allowedItemTag : config.itemFilter().allowedItemTags()) {
+            if (entry.is(allowedItemTag)) {
+                return true;
+            }
+        }
+
+        if (config.itemFilter().isWhiteList()) {
+            // returning now because all the whitelisted items have already been checked
+            // so if it reaches this far then the item is not whitelisted
+            return false;
+        }
+
+        for (Holder<Item> disallowedItem : config.itemFilter().disallowedItems()) {
+            if (entry.is(disallowedItem)) {
+                return false;
+            }
+        }
+        for (TagKey<Item> disallowedItemTag : config.itemFilter().disallowedItemTags()) {
+            if (entry.is(disallowedItemTag)) {
+                return false;
+            }
+        }
+
         Item item = entry.value();
         if (!config.hardMode() && hardItems.contains(item)) {
             return false;
         }
 
-        return !(item instanceof GameMasterBlockItem) && !(item instanceof AirItem) && !(item instanceof SpawnEggItem) && !disallowedItems.contains(item) && item.isEnabled(level.enabledFeatures());
+        return !(item instanceof GameMasterBlockItem) && !(item instanceof AirItem) && !(item instanceof SpawnEggItem) && item.isEnabled(level.enabledFeatures());
     }
 
     public static void rules(GameActivity activity) {

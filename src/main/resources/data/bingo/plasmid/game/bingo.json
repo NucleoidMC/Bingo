@@ -1,4 +1,8 @@
 {
   "type": "bingo:bingo",
-  "preset": "minecraft:normal"
+  "preset": "minecraft:normal",
+  "item_filter": {
+    "allowed_item_tags": ["bingo:bingo_enabled"],
+    "disallowed_item_tags": ["bingo:bingo_disabled"]
+  }
 }

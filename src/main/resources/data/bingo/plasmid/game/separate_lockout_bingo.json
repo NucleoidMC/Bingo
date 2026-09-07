@@ -2,5 +2,9 @@
   "type": "bingo:bingo",
   "preset": "minecraft:normal",
   "separate": true,
-  "lockout": true
+  "lockout": true,
+  "item_filter": {
+    "allowed_item_tags": ["bingo:bingo_enabled"],
+    "disallowed_item_tags": ["bingo:bingo_disabled"]
+  }
 }

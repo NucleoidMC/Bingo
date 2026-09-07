@@ -6,5 +6,9 @@
   "generic_music_disc_drops": false,
   "generic_sherd_drops": false,
   "generic_armor_trim_drops": false,
-  "lockout": true
+  "lockout": true,
+  "item_filter": {
+    "allowed_item_tags": ["bingo:bingo_enabled"],
+    "disallowed_item_tags": ["bingo:bingo_disabled"]
+  }
 }

@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "copper_block",
+    "copper_chest",
+    "copper_golem_statue",
+    "lightning_rod"
+  ]
+}

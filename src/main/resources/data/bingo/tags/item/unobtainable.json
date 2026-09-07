@@ -1,0 +1,20 @@
+{
+  "replace": false,
+  "values": [
+    "knowledge_book",
+    "debug_stick",
+    "light",
+    "bedrock",
+    "vault",
+    "spawner",
+    "trial_spawner",
+    "end_portal_frame",
+    "barrier",
+    "structure_block",
+    "structure_void",
+    "petrified_oak_slab",
+    "reinforced_deepslate",
+    "budding_amethyst",
+    "farmland"
+  ]
+}
