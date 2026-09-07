@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    "copper_trapdoor",
+    "exposed_copper_trapdoor",
+    "weathered_copper_trapdoor",
+    "oxidized_copper_trapdoor",
+    "waxed_copper_trapdoor",
+    "waxed_exposed_copper_trapdoor",
+    "waxed_weathered_copper_trapdoor",
+    "waxed_oxidized_copper_trapdoor"
+  ]
+}

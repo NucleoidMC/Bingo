@@ -4,6 +4,17 @@
     "copper_block",
     "copper_chest",
     "copper_golem_statue",
+    "chiseled_copper",
+    "copper_bars",
+    "copper_bulb",
+    "copper_chain",
+    "copper_door",
+    "copper_grate",
+    "copper_lantern",
+    "copper_trapdoor",
+    "cut_copper",
+    "cut_copper_slab",
+    "cut_copper_stairs",
     "lightning_rod"
   ]
 }

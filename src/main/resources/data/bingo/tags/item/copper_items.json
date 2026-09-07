@@ -1,0 +1,19 @@
+{
+  "replace": false,
+  "values": [
+    "#copper",
+    "#copper_chests",
+    "#copper_golem_statues",
+    "#bingo:chiseled_copper",
+    "#bingo:copper_bar",
+    "#bingo:copper_bulb",
+    "#bingo:copper_chain",
+    "#bingo:copper_door",
+    "#bingo:copper_grate",
+    "#bingo:copper_lantern",
+    "#bingo:copper_trapdoor",
+    "#bingo:cut_copper",
+    "#bingo:cut_copper_slab",
+    "#bingo:cut_copper_stair"
+  ]
+}
