@@ -29,6 +29,7 @@
   "bingo.respawning": "Respawning in %s seconds.",
   "bingo.itempickup": "%s just got %s!",
   "bingo.itempickup.hover": "See %s's bingo card",
+  "bingo.close_to_win": "%s is close to winning!",
   "bingo.win_message": "%s has won Bingo with %s slots!",
   "bingo.win_message.timeout": "No one has won (Timeout)",
   "bingo.gui.card.title.self": "Your Bingo Card",

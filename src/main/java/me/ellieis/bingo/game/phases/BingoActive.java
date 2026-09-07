@@ -338,6 +338,26 @@ public class BingoActive {
             content.add(CommonComponents.EMPTY);
         });
     }
+
+    private void broadcastCloseToWin(ServerPlayer plr) {
+        teamManager.ifPresentOrElse((manager) -> {
+            gameSpace.getPlayers().sendMessage(Component.translatable("bingo.close_to_win", manager.getTeamConfig(manager.teamFor(plr)).name()));
+        }, () -> {
+            gameSpace.getPlayers().sendMessage(Component.translatable("bingo.close_to_win", plr.getName()));
+        });
+        gameSpace.getPlayers().playSound(SoundEvents.NOTE_BLOCK_PLING.value());
+    }
+
+    private int markedSpotsInList(List<BingoSlot> col) {
+        int slotCount = 0;
+        for (BingoSlot bingoSlot : col) {
+            if (bingoSlot.marked()) {
+                slotCount++;
+            }
+        }
+        return slotCount;
+    }
+
     private boolean checkForWin(ServerPlayer plr) {
         List<List<BingoSlot>> bingoCard = bingoCards.get(new PlayerRef(plr.getUUID()));
         if (config.lockout()) {
@@ -361,60 +381,63 @@ public class BingoActive {
             }
             return claimedSlotCount >= threshold;
         }
-        boolean horizontalWin = true;
+        boolean hasBroadcasted = false;
         for (List<BingoSlot> col : bingoCard) {
-            horizontalWin = true;
-            for (BingoSlot slot : col) {
-                if (!slot.marked()) {
-                    horizontalWin = false;
-                    break;
+            int markedSlots = markedSpotsInList(col);
+            if (markedSlots >= col.size()) {
+                return true;
+            } else if (markedSlots + 1 >= col.size()) {
+                if (!hasBroadcasted) {
+                    broadcastCloseToWin(plr);
                 }
-            }
-            if (horizontalWin) {
-                break;
+                hasBroadcasted = true;
             }
         }
 
-        boolean verticalWin = true;
         for (int rowIndex = 0; rowIndex < 5; rowIndex++) {
-            verticalWin = true;
             List<BingoSlot> row = new ArrayList<>();
             for (int colIndex = 0; colIndex < 5; colIndex ++) {
                 row.add(bingoCard.get(colIndex).get(rowIndex));
             }
-
-            for (BingoSlot slot : row) {
-                if (!slot.marked()) {
-                    verticalWin = false;
-                    break;
+            int markedSlots = markedSpotsInList(row);
+            if (markedSlots >= row.size()) {
+                return true;
+            } else if (markedSlots + 1 >= row.size()) {
+                if (!hasBroadcasted) {
+                    broadcastCloseToWin(plr);
                 }
-            }
-
-            if (verticalWin) {
-                break;
+                hasBroadcasted = true;
             }
         }
 
-        boolean diagonalWin = true;
         // upper left to bottom right check
+        List<BingoSlot> diagonal = new ArrayList<>();
         for (int index = 0; index < 5; index++) {
-            if (!bingoCard.get(index).get(index).marked()) {
-                diagonalWin = false;
-                break;
-            }
+            diagonal.add(bingoCard.get(index).get(index));
         }
+        int markedSlots = markedSpotsInList(diagonal);
+        if (markedSlots >= diagonal.size()) {
+            return true;
+        } else if (markedSlots + 1 >= diagonal.size()) {
+            if (!hasBroadcasted) {
+                broadcastCloseToWin(plr);
+            }
+            hasBroadcasted = true;
+        }
+
         // upper right to bottom left check
-        if (!diagonalWin) {
-            diagonalWin = true;
-            for (int index = 4; index >= 0; index--) {
-                BingoSlot slot = bingoCard.get(4 - index).get(index);
-                if (!slot.marked()) {
-                    diagonalWin = false;
-                    break;
-                }
+        diagonal.clear();
+        for (int index = 4; index >= 0; index--) {
+            diagonal.add(bingoCard.get(4 - index).get(index));
+        }
+        if (markedSlots >= diagonal.size()) {
+            return true;
+        } else if (markedSlots + 1 >= diagonal.size()) {
+            if (!hasBroadcasted) {
+                broadcastCloseToWin(plr);
             }
         }
-        return horizontalWin || verticalWin || diagonalWin;
+        return false;
     }
     private boolean isSameItem(Item item, Item otherItem) {
 
