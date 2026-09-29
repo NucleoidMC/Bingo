@@ -10,6 +10,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.levelgen.densityfunction.DensityFunctions;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.GameType;
@@ -118,8 +119,7 @@ public class BingoLoading {
         var chunkManager = world.getChunkSource();
         var noiseConfig = chunkManager.randomState();
         var chunkGenerator = chunkManager.getGenerator();
-        BlockPos pos = noiseConfig.sampler().findSpawnPosition();
-        var startChunkPos = new ChunkPos(pos.getX(), pos.getZ());
+        var startChunkPos = chunkGenerator.getOrigin(noiseConfig);
         var dx = 0;
         var dz = 0;
         var stepX = 0;
